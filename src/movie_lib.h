@@ -1,7 +1,7 @@
-#ifndef MOVIE_LIB_H
-#define MOVIE_LIB_H
+#ifndef FALLOUT_MOVIE_LIB_H_
+#define FALLOUT_MOVIE_LIB_H_
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 namespace fallout {
 
@@ -27,4 +27,4 @@ void _MVE_ReleaseMem();
 
 } // namespace fallout
 
-#endif /* MOVIE_LIB_H */
+#endif /* FALLOUT_MOVIE_LIB_H_ */

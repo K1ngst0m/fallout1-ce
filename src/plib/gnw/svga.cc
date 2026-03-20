@@ -27,7 +27,8 @@ FpsLimiter sharedFpsLimiter;
 // 0x4CB310
 void GNW95_SetPaletteEntries(unsigned char* palette, int start, int count)
 {
-    if (gSdlSurface != NULL && gSdlSurface->format->palette != NULL) {
+    SDL_Palette* surfacePalette = gSdlSurface != NULL ? SDL_GetSurfacePalette(gSdlSurface) : NULL;
+    if (surfacePalette != NULL) {
         SDL_Color colors[256];
 
         if (count != 0) {
@@ -39,7 +40,7 @@ void GNW95_SetPaletteEntries(unsigned char* palette, int start, int count)
             }
         }
 
-        SDL_SetPaletteColors(gSdlSurface->format->palette, colors, start, count);
+        SDL_SetPaletteColors(surfacePalette, colors, start, count);
         SDL_BlitSurface(gSdlSurface, NULL, gSdlTextureSurface, NULL);
     }
 }
@@ -47,7 +48,8 @@ void GNW95_SetPaletteEntries(unsigned char* palette, int start, int count)
 // 0x4CB568
 void GNW95_SetPalette(unsigned char* palette)
 {
-    if (gSdlSurface != NULL && gSdlSurface->format->palette != NULL) {
+    SDL_Palette* surfacePalette = gSdlSurface != NULL ? SDL_GetSurfacePalette(gSdlSurface) : NULL;
+    if (surfacePalette != NULL) {
         SDL_Color colors[256];
 
         for (int index = 0; index < 256; index++) {
@@ -57,7 +59,7 @@ void GNW95_SetPalette(unsigned char* palette)
             colors[index].a = 255;
         }
 
-        SDL_SetPaletteColors(gSdlSurface->format->palette, colors, 0, 256);
+        SDL_SetPaletteColors(surfacePalette, colors, 0, 256);
         SDL_BlitSurface(gSdlSurface, NULL, gSdlTextureSurface, NULL);
     }
 }
@@ -83,17 +85,17 @@ bool svga_init(VideoOptions* video_options)
 {
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
+    if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
         return false;
     }
 
-    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
+    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
     if (video_options->fullscreen) {
         windowFlags |= SDL_WINDOW_FULLSCREEN;
     }
 
-    gSdlWindow = SDL_CreateWindow(GNW95_title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    gSdlWindow = SDL_CreateWindow(GNW95_title,
         video_options->width * video_options->scale,
         video_options->height * video_options->scale,
         windowFlags);
@@ -110,20 +112,35 @@ bool svga_init(VideoOptions* video_options)
         return false;
     }
 
-    gSdlSurface = SDL_CreateRGBSurface(0,
-        video_options->width,
+    gSdlSurface = SDL_CreateSurface(video_options->width,
         video_options->height,
-        8,
-        0,
-        0,
-        0,
-        0);
+        SDL_PIXELFORMAT_INDEX8);
     if (gSdlSurface == NULL) {
         destroyRenderer();
 
         SDL_DestroyWindow(gSdlWindow);
         gSdlWindow = NULL;
+
+        return false;
     }
+
+    SDL_Palette* palette = SDL_CreatePalette(256);
+    if (palette == NULL || !SDL_SetSurfacePalette(gSdlSurface, palette)) {
+        if (palette != NULL) {
+            SDL_DestroyPalette(palette);
+        }
+
+        SDL_DestroySurface(gSdlSurface);
+        gSdlSurface = NULL;
+        destroyRenderer();
+
+        SDL_DestroyWindow(gSdlWindow);
+        gSdlWindow = NULL;
+
+        return false;
+    }
+
+    SDL_DestroyPalette(palette);
 
     SDL_Color colors[256];
     for (int index = 0; index < 256; index++) {
@@ -133,7 +150,7 @@ bool svga_init(VideoOptions* video_options)
         colors[index].a = 255;
     }
 
-    SDL_SetPaletteColors(gSdlSurface->format->palette, colors, 0, 256);
+    SDL_SetPaletteColors(SDL_GetSurfacePalette(gSdlSurface), colors, 0, 256);
 
     scr_size.ulx = 0;
     scr_size.uly = 0;
@@ -173,26 +190,31 @@ int screenGetHeight()
 
 static bool createRenderer(int width, int height)
 {
-    gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, 0);
+    gSdlRenderer = SDL_CreateRenderer(gSdlWindow, NULL);
     if (gSdlRenderer == NULL) {
         return false;
     }
 
-    if (SDL_RenderSetLogicalSize(gSdlRenderer, width, height) != 0) {
+    if (!SDL_SetRenderLogicalPresentation(gSdlRenderer, width, height, SDL_LOGICAL_PRESENTATION_STRETCH)) {
         return false;
     }
 
-    gSdlTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    gSdlTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if (gSdlTexture == NULL) {
         return false;
     }
 
-    Uint32 format;
-    if (SDL_QueryTexture(gSdlTexture, &format, NULL, NULL, NULL) != 0) {
+    SDL_PropertiesID textureProperties = SDL_GetTextureProperties(gSdlTexture);
+    if (textureProperties == 0) {
         return false;
     }
 
-    gSdlTextureSurface = SDL_CreateRGBSurfaceWithFormat(0, width, height, SDL_BITSPERPIXEL(format), format);
+    SDL_PixelFormat format = static_cast<SDL_PixelFormat>(SDL_GetNumberProperty(textureProperties, SDL_PROP_TEXTURE_FORMAT_NUMBER, SDL_PIXELFORMAT_UNKNOWN));
+    if (format == SDL_PIXELFORMAT_UNKNOWN) {
+        return false;
+    }
+
+    gSdlTextureSurface = SDL_CreateSurface(width, height, format);
     if (gSdlTextureSurface == NULL) {
         return false;
     }
@@ -203,7 +225,7 @@ static bool createRenderer(int width, int height)
 static void destroyRenderer()
 {
     if (gSdlTextureSurface != NULL) {
-        SDL_FreeSurface(gSdlTextureSurface);
+        SDL_DestroySurface(gSdlTextureSurface);
         gSdlTextureSurface = NULL;
     }
 
@@ -228,7 +250,7 @@ void renderPresent()
 {
     SDL_UpdateTexture(gSdlTexture, NULL, gSdlTextureSurface->pixels, gSdlTextureSurface->pitch);
     SDL_RenderClear(gSdlRenderer);
-    SDL_RenderCopy(gSdlRenderer, gSdlTexture, NULL, NULL);
+    SDL_RenderTexture(gSdlRenderer, gSdlTexture, NULL, NULL);
     SDL_RenderPresent(gSdlRenderer);
 }
 

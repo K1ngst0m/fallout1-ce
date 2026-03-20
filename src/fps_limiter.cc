@@ -1,6 +1,6 @@
 #include "fps_limiter.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 namespace fallout {
 

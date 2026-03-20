@@ -261,7 +261,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/plib/gnw/touch.h"
 )
 
-find_package(SDL2 REQUIRED)
+find_package(SDL3 3.2.0 REQUIRED)
 
 add_subdirectory("third_party/adecode")
 target_link_libraries(${EXECUTABLE_NAME} adecode::adecode)
@@ -269,8 +269,7 @@ target_link_libraries(${EXECUTABLE_NAME} adecode::adecode)
 add_subdirectory("third_party/fpattern")
 target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
 
-target_link_libraries(${EXECUTABLE_NAME} ${SDL2_LIBRARIES})
-target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SDL2_INCLUDE_DIRS})
+target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3)
 
 if(BUILD_TESTING)
     add_subdirectory("tests")

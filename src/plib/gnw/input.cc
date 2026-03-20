@@ -67,7 +67,7 @@ static unsigned int GNW95_repeat_delay = 500;
 // A map of SDL scancodes normalized for QWERTY keyboard.
 //
 // 0x6713F0
-static int GNW95_key_map[SDL_NUM_SCANCODES];
+static int GNW95_key_map[SDL_SCANCODE_COUNT];
 
 // Ring buffer of input events.
 //
@@ -78,7 +78,7 @@ static int GNW95_key_map[SDL_NUM_SCANCODES];
 static inputdata input_buffer[40];
 
 // 0x6716D0
-static GNW95RepeatStruct GNW95_key_time_stamps[SDL_NUM_SCANCODES];
+static GNW95RepeatStruct GNW95_key_time_stamps[SDL_SCANCODE_COUNT];
 
 // 0x671ED0
 static int input_mx;
@@ -1089,50 +1089,46 @@ void GNW95_process_message()
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
-        case SDL_MOUSEMOTION:
-        case SDL_MOUSEBUTTONDOWN:
-        case SDL_MOUSEBUTTONUP:
-        case SDL_MOUSEWHEEL:
+        case SDL_EVENT_MOUSE_MOTION:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+        case SDL_EVENT_MOUSE_WHEEL:
             handleMouseEvent(&e);
             break;
-        case SDL_FINGERDOWN:
+        case SDL_EVENT_FINGER_DOWN:
             touch_handle_start(&(e.tfinger));
             break;
-        case SDL_FINGERMOTION:
+        case SDL_EVENT_FINGER_MOTION:
             touch_handle_move(&(e.tfinger));
             break;
-        case SDL_FINGERUP:
+        case SDL_EVENT_FINGER_UP:
             touch_handle_end(&(e.tfinger));
             break;
-        case SDL_KEYDOWN:
-        case SDL_KEYUP:
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP:
             if (!kb_is_disabled()) {
-                keyboardData.key = e.key.keysym.scancode;
-                keyboardData.down = (e.key.state & SDL_PRESSED) != 0;
+                keyboardData.key = e.key.scancode;
+                keyboardData.down = e.key.down;
                 GNW95_process_key(&keyboardData);
             }
             break;
-        case SDL_WINDOWEVENT:
-            switch (e.window.event) {
-            case SDL_WINDOWEVENT_EXPOSED:
-                win_refresh_all(&scr_size);
-                break;
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
-                handleWindowSizeChanged();
-                win_refresh_all(&scr_size);
-                break;
-            case SDL_WINDOWEVENT_FOCUS_GAINED:
-                GNW95_isActive = true;
-                win_refresh_all(&scr_size);
-                audioEngineResume();
-                break;
-            case SDL_WINDOWEVENT_FOCUS_LOST:
-                GNW95_isActive = false;
-                audioEnginePause();
-                break;
-            }
+        case SDL_EVENT_WINDOW_EXPOSED:
+            win_refresh_all(&scr_size);
             break;
-        case SDL_QUIT:
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+            handleWindowSizeChanged();
+            win_refresh_all(&scr_size);
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            GNW95_isActive = true;
+            win_refresh_all(&scr_size);
+            audioEngineResume();
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            GNW95_isActive = false;
+            audioEnginePause();
+            break;
+        case SDL_EVENT_QUIT:
             exit(EXIT_SUCCESS);
             break;
         }
@@ -1144,7 +1140,7 @@ void GNW95_process_message()
         // NOTE: Uninline
         unsigned int tick = get_time();
 
-        for (int key = 0; key < SDL_NUM_SCANCODES; key++) {
+        for (int key = 0; key < SDL_SCANCODE_COUNT; key++) {
             GNW95RepeatStruct* ptr = &(GNW95_key_time_stamps[key]);
             if (ptr->time != -1) {
                 unsigned int elapsedTime = ptr->time > tick ? INT_MAX : tick - ptr->time;
@@ -1165,7 +1161,7 @@ void GNW95_process_message()
 // 0x4B4638
 void GNW95_clear_time_stamps()
 {
-    for (int index = 0; index < SDL_NUM_SCANCODES; index++) {
+    for (int index = 0; index < SDL_SCANCODE_COUNT; index++) {
         GNW95_key_time_stamps[index].time = -1;
         GNW95_key_time_stamps[index].count = 0;
     }
@@ -1229,12 +1225,12 @@ static void idleImpl()
 
 void beginTextInput()
 {
-    SDL_StartTextInput();
+    SDL_StartTextInput(gSdlWindow);
 }
 
 void endTextInput()
 {
-    SDL_StopTextInput();
+    SDL_StopTextInput(gSdlWindow);
 }
 
 } // namespace fallout
