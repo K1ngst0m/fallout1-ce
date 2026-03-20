@@ -3704,6 +3704,7 @@ void combat_display(Attack* attack)
     }
 
     char text[280];
+    text[0] = '\0';
     if (attack->defender != NULL
         && attack->oops != NULL
         && attack->defender != attack->oops
@@ -4186,12 +4187,14 @@ static char* combat_get_loc_name(Object* critter, int hitLocation)
 // 0x4237C8
 static void draw_loc_off(int btn, int input)
 {
+    (void)btn;
     draw_loc(input, colorTable[992]);
 }
 
 // 0x4237D4
 static void draw_loc_on(int btn, int input)
 {
+    (void)btn;
     draw_loc(input, colorTable[31744]);
 }
 
@@ -4708,6 +4711,7 @@ int combat_player_knocked_out_by()
 // 0x42435C
 int combat_explode_scenery(Object* a1, Object* a2)
 {
+    (void)a2;
     scr_explode_scenery(a1, a1->tile, 3, a1->elevation);
     return 0;
 }

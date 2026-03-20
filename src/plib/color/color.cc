@@ -620,6 +620,10 @@ unsigned char* getColorBlendTable(int ch)
 
     if (blendTable[ch] == NULL) {
         ptr = (unsigned char*)mallocPtr(4100);
+        if (ptr == NULL) {
+            return NULL;
+        }
+
         *(int*)ptr = 1;
         blendTable[ch] = ptr + 4;
         buildBlendTable(blendTable[ch], ch);
@@ -701,6 +705,10 @@ bool colorPushColorPalette()
     }
 
     ColorPaletteStackEntry* entry = (ColorPaletteStackEntry*)malloc(sizeof(*entry));
+    if (entry == NULL) {
+        return false;
+    }
+
     colorPaletteStack[tos] = entry;
 
     memcpy(entry->mappedColors, mappedColor, sizeof(mappedColor));
