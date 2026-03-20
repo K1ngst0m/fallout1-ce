@@ -86,9 +86,6 @@ static TouchLocation touch_get_current_location_centroid(int* indexes, int lengt
 
 void touch_handle_start(SDL_TouchFingerEvent* event)
 {
-    // On iOS `fingerId` is an address of underlying `UITouch` object. When
-    // `touchesBegan` is called this object might be reused, but with
-    // incresed `tapCount` (which is ignored in this implementation).
     int index = find_touch(event->fingerId);
     if (index == -1) {
         index = find_unused_touch_index();

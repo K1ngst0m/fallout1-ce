@@ -2,26 +2,14 @@
 
 #include <string.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
-#ifdef _WIN32
-#include <direct.h>
-#include <io.h>
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#else
-#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#endif
 
-#ifdef _WIN32
-#include <timeapi.h>
-#else
 #include <chrono>
-#endif
 
 #include <SDL.h>
 
@@ -54,9 +42,6 @@ char* compat_itoa(int value, char* buffer, int radix)
 
 void compat_splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
 {
-#ifdef _WIN32
-    _splitpath(path, drive, dir, fname, ext);
-#else
     const char* driveStart = path;
     if (path[0] == '/' && path[1] == '/') {
         path += 2;
@@ -118,14 +103,10 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         strncpy(ext, extStart, extSize);
         ext[extSize] = '\0';
     }
-#endif
 }
 
 void compat_makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
 {
-#ifdef _WIN32
-    _makepath(path, drive, dir, fname, ext);
-#else
     path[0] = '\0';
 
     if (drive != NULL) {
@@ -183,7 +164,6 @@ void compat_makepath(char* path, const char* drive, const char* dir, const char*
     }
 
     *path = '\0';
-#endif
 }
 
 int compat_read(int fileHandle, void* buf, unsigned int size)
@@ -222,22 +202,14 @@ int compat_mkdir(const char* path)
     compat_windows_path_to_native(nativePath);
     compat_resolve_path(nativePath);
 
-#ifdef _WIN32
-    return mkdir(nativePath);
-#else
     return mkdir(nativePath, 0755);
-#endif
 }
 
 unsigned int compat_timeGetTime()
 {
-#ifdef _WIN32
-    return timeGetTime();
-#else
     static auto start = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
     return static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count());
-#endif
 }
 
 FILE* compat_fopen(const char* path, const char* mode)
@@ -275,7 +247,6 @@ int compat_rename(const char* oldFileName, const char* newFileName)
 
 void compat_windows_path_to_native(char* path)
 {
-#ifndef _WIN32
     char* pch = path;
     while (*pch != '\0') {
         if (*pch == '\\') {
@@ -283,12 +254,10 @@ void compat_windows_path_to_native(char* path)
         }
         pch++;
     }
-#endif
 }
 
 void compat_resolve_path(char* path)
 {
-#ifndef _WIN32
     char* pch = path;
 
     DIR* dir;
@@ -337,7 +306,6 @@ void compat_resolve_path(char* path)
 
         pch = sep + 1;
     }
-#endif
 }
 
 char* compat_strdup(const char* string)
@@ -345,8 +313,6 @@ char* compat_strdup(const char* string)
     return SDL_strdup(string);
 }
 
-// It's a replacement for compat_filelength(fileno(stream)) on platforms without
-// fileno defined.
 long getFileSize(FILE* stream)
 {
     long originalOffset = ftell(stream);

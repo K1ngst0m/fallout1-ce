@@ -6,13 +6,7 @@
 
 namespace fallout {
 
-// TODO: This is compatibility cross-platform layer. Designed to have minimal
-// impact on the codebase. Remove once it's no longer needed.
-
-// A naive cross-platform MAX_PATH/PATH_MAX/MAX_PATH drop-in replacement.
-//
-// TODO: Remove when we migrate to use std::filesystem::path or std::string to
-// represent paths across the codebase.
+// Path buffer size used by path helper functions.
 #define COMPAT_MAX_PATH 260
 
 #define COMPAT_MAX_DRIVE 3

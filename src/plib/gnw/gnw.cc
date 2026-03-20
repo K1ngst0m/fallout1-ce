@@ -27,14 +27,6 @@ static void* colorOpen(const char* path);
 static int colorRead(void* handle, void* buf, size_t count);
 static int colorClose(void* handle);
 
-// 0x53A22C
-static bool GNW95_already_running = false;
-
-#ifdef _WIN32
-// 0x53A230
-static HANDLE GNW95_title_mutex = INVALID_HANDLE_VALUE;
-#endif
-
 // 0x53A234
 bool GNW_win_init_flag = false;
 
@@ -78,21 +70,6 @@ void* GNW_texture;
 // 0x4C1CF0
 int win_init(VideoOptions* video_options, int flags)
 {
-#ifdef _WIN32
-    CloseHandle(GNW95_mutex);
-    GNW95_mutex = INVALID_HANDLE_VALUE;
-#endif
-
-    if (GNW95_already_running) {
-        return WINDOW_MANAGER_ERR_ALREADY_RUNNING;
-    }
-
-#ifdef _WIN32
-    if (GNW95_title_mutex == INVALID_HANDLE_VALUE) {
-        return WINDOW_MANAGER_ERR_TITLE_NOT_SET;
-    }
-#endif
-
     if (GNW_win_init_flag) {
         return WINDOW_MANAGER_ERR_WINDOW_SYSTEM_ALREADY_INITIALIZED;
     }
@@ -238,11 +215,6 @@ void win_exit(void)
             colorsClose();
 
             GNW_win_init_flag = false;
-
-#ifdef _WIN32
-            CloseHandle(GNW95_title_mutex);
-            GNW95_title_mutex = INVALID_HANDLE_VALUE;
-#endif
         }
         insideWinExit = false;
     }
@@ -1255,16 +1227,6 @@ void win_set_minimized_title(const char* title)
     if (title == NULL) {
         return;
     }
-
-#ifdef _WIN32
-    if (GNW95_title_mutex == INVALID_HANDLE_VALUE) {
-        GNW95_title_mutex = CreateMutexA(NULL, TRUE, title);
-        if (GetLastError() != ERROR_SUCCESS) {
-            GNW95_already_running = true;
-            return;
-        }
-    }
-#endif
 
     strncpy(GNW95_title, title, 256);
     GNW95_title[256 - 1] = '\0';
