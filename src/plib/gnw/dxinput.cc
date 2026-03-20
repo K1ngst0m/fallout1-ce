@@ -1,5 +1,7 @@
 #include "plib/gnw/dxinput.h"
 
+#include "plib/gnw/svga.h"
+
 namespace fallout {
 
 static bool dxinput_mouse_init();
@@ -13,7 +15,7 @@ static int gMouseWheelDeltaY = 0;
 // 0x4E0400
 bool dxinput_init()
 {
-    if (SDL_InitSubSystem(SDL_INIT_EVENTS) != 0) {
+    if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
         return false;
     }
 
@@ -63,9 +65,13 @@ bool dxinput_get_mouse_state(MouseData* mouseState)
     // update mouse position manually.
     SDL_PumpEvents();
 
-    Uint32 buttons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
-    mouseState->buttons[0] = (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
-    mouseState->buttons[1] = (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+    float x;
+    float y;
+    SDL_MouseButtonFlags buttons = SDL_GetRelativeMouseState(&x, &y);
+    mouseState->x = static_cast<int>(x);
+    mouseState->y = static_cast<int>(y);
+    mouseState->buttons[0] = (buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) != 0;
+    mouseState->buttons[1] = (buttons & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)) != 0;
     mouseState->wheelX = gMouseWheelDeltaX;
     mouseState->wheelY = gMouseWheelDeltaY;
 
@@ -90,7 +96,7 @@ bool dxinput_unacquire_keyboard()
 // 0x4E05FC
 bool dxinput_flush_keyboard_buffer()
 {
-    SDL_FlushEvents(SDL_KEYDOWN, SDL_TEXTINPUT);
+    SDL_FlushEvents(SDL_EVENT_KEY_DOWN, SDL_EVENT_TEXT_INPUT);
     return true;
 }
 
@@ -103,7 +109,7 @@ bool dxinput_read_keyboard_buffer(KeyboardData* keyboardData)
 // 0x4E070C
 bool dxinput_mouse_init()
 {
-    return SDL_SetRelativeMouseMode(SDL_TRUE) == 0;
+    return gSdlWindow != nullptr && SDL_SetWindowRelativeMouseMode(gSdlWindow, true);
 }
 
 // 0x4E078C
@@ -127,7 +133,7 @@ void handleMouseEvent(SDL_Event* event)
     // Mouse movement and buttons are accumulated in SDL itself and will be
     // processed later in `mouseDeviceGetData` via `SDL_GetRelativeMouseState`.
 
-    if (event->type == SDL_MOUSEWHEEL) {
+    if (event->type == SDL_EVENT_MOUSE_WHEEL) {
         gMouseWheelDeltaX += event->wheel.x;
         gMouseWheelDeltaY += event->wheel.y;
     }

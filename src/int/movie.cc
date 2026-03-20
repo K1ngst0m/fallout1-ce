@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "game/gconfig.h"
 #include "game/moviefx.h"
@@ -313,7 +313,7 @@ static void movie_MVE_ShowFrame(SDL_Surface* surface, int srcWidth, int srcHeigh
         }
     }
 
-    SDL_SetSurfacePalette(surface, gSdlSurface->format->palette);
+    SDL_SetSurfacePalette(surface, SDL_GetSurfacePalette(gSdlSurface));
     SDL_BlitSurface(surface, &srcRect, gSdlSurface, &destRect);
     SDL_BlitSurface(gSdlSurface, NULL, gSdlTextureSurface, NULL);
     renderPresent();

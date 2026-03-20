@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "audio_engine.h"
 #include "platform_compat.h"
@@ -48,7 +48,7 @@ static char* defaultMangler(char* fname);
 static void refreshSoundBuffers(Sound* sound);
 static int preloadBuffers(Sound* sound);
 static int addSoundData(Sound* sound, unsigned char* buf, int size);
-static Uint32 doTimerEvent(Uint32 interval, void* param);
+static Uint32 doTimerEvent(void* param, SDL_TimerID timerId, Uint32 interval);
 static void removeTimedEvent(SDL_TimerID* timerId);
 static void removeFadeSound(FadeSound* fadeSound);
 static void fadeSounds();
@@ -1357,9 +1357,12 @@ int soundSetMasterVolume(int volume)
 }
 
 // 0x49BB48
-static Uint32 doTimerEvent(Uint32 interval, void* param)
+static Uint32 doTimerEvent(void* param, SDL_TimerID timerId, Uint32 interval)
 {
     void (*fn)();
+
+    (void)timerId;
+    (void)interval;
 
     if (param != NULL) {
         fn = (void (*)())param;

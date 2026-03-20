@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 
 #include "game/main.h"
 #include "plib/gnw/gnw.h"
@@ -20,7 +21,7 @@ int main(int argc, char* argv[])
 {
     int rc;
 
-    SDL_ShowCursor(SDL_DISABLE);
+    SDL_HideCursor();
 
     GNW95_isActive = true;
     rc = gnw_main(argc, argv);

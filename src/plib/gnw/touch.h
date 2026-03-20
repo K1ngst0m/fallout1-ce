@@ -1,7 +1,7 @@
-#ifndef FALLOUT_PLIB_GNW_TOUCH_H
-#define FALLOUT_PLIB_GNW_TOUCH_H
+#ifndef FALLOUT_PLIB_GNW_TOUCH_H_
+#define FALLOUT_PLIB_GNW_TOUCH_H_
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 namespace fallout {
 
@@ -35,4 +35,4 @@ bool touch_get_gesture(Gesture* gesture);
 
 } // namespace fallout
 
-#endif /* FALLOUT_PLIB_GNW_TOUCH_H */
+#endif /* FALLOUT_PLIB_GNW_TOUCH_H_ */

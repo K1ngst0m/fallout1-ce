@@ -1,14 +1,16 @@
 #include "audio_engine.h"
 
+#include <cstdlib>
 #include <string.h>
 
 #include <mutex>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 namespace fallout {
 
 #define AUDIO_ENGINE_SOUND_BUFFERS 8
+#define AUDIO_ENGINE_MAX_VOLUME 128
 
 struct AudioEngineSoundBuffer {
     bool active;
@@ -29,9 +31,11 @@ extern bool GNW95_isActive;
 
 static bool soundBufferIsValid(int soundBufferIndex);
 static void audioEngineMixin(void* userData, Uint8* stream, int length);
+static void audioEngineCallback(void* userData, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
 
 static SDL_AudioSpec gAudioEngineSpec;
 static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
+static SDL_AudioStream* gAudioEngineOutputStream = NULL;
 static AudioEngineSoundBuffer gAudioEngineSoundBuffers[AUDIO_ENGINE_SOUND_BUFFERS];
 
 static bool audioEngineIsInitialized()
@@ -44,9 +48,30 @@ static bool soundBufferIsValid(int soundBufferIndex)
     return soundBufferIndex >= 0 && soundBufferIndex < AUDIO_ENGINE_SOUND_BUFFERS;
 }
 
+static void audioEngineCallback(void* userData, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
+{
+    (void)totalAmount;
+
+    unsigned char buffer[1024];
+
+    while (additionalAmount > 0) {
+        int chunkSize = additionalAmount;
+        if (chunkSize > static_cast<int>(sizeof(buffer))) {
+            chunkSize = sizeof(buffer);
+        }
+
+        audioEngineMixin(userData, buffer, chunkSize);
+        if (!SDL_PutAudioStreamData(stream, buffer, chunkSize)) {
+            break;
+        }
+
+        additionalAmount -= chunkSize;
+    }
+}
+
 static void audioEngineMixin(void* userData, Uint8* stream, int length)
 {
-    memset(stream, gAudioEngineSpec.silence, length);
+    memset(stream, SDL_GetSilenceValueForFormat(gAudioEngineSpec.format), length);
 
     if (!GNW95_isActive) {
         return;
@@ -68,15 +93,17 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
                 }
 
                 // TODO: Make something better than frame-by-frame convertion.
-                SDL_AudioStreamPut(soundBuffer->stream, (unsigned char*)soundBuffer->data + soundBuffer->pos, srcFrameSize);
+                if (!SDL_PutAudioStreamData(soundBuffer->stream, (unsigned char*)soundBuffer->data + soundBuffer->pos, srcFrameSize)) {
+                    break;
+                }
                 soundBuffer->pos += srcFrameSize;
 
-                int bytesRead = SDL_AudioStreamGet(soundBuffer->stream, buffer, remaining);
+                int bytesRead = SDL_GetAudioStreamData(soundBuffer->stream, buffer, remaining);
                 if (bytesRead == -1) {
                     break;
                 }
 
-                SDL_MixAudioFormat(stream + pos, buffer, gAudioEngineSpec.format, bytesRead, soundBuffer->volume);
+                SDL_MixAudio(stream + pos, buffer, gAudioEngineSpec.format, bytesRead, static_cast<float>(soundBuffer->volume) / AUDIO_ENGINE_MAX_VOLUME);
 
                 if (soundBuffer->pos >= soundBuffer->size) {
                     if (soundBuffer->looping) {
@@ -95,23 +122,23 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
 
 bool audioEngineInit()
 {
-    if (SDL_InitSubSystem(SDL_INIT_AUDIO) == -1) {
+    if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         return false;
     }
 
-    SDL_AudioSpec desiredSpec;
+    SDL_AudioSpec desiredSpec = { };
     desiredSpec.freq = 22050;
-    desiredSpec.format = AUDIO_S16;
+    desiredSpec.format = SDL_AUDIO_S16;
     desiredSpec.channels = 2;
-    desiredSpec.samples = 1024;
-    desiredSpec.callback = audioEngineMixin;
 
-    gAudioEngineDeviceId = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
-    if (gAudioEngineDeviceId == -1) {
+    gAudioEngineSpec = desiredSpec;
+    gAudioEngineOutputStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &desiredSpec, audioEngineCallback, NULL);
+    if (gAudioEngineOutputStream == NULL) {
         return false;
     }
 
-    SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
+    gAudioEngineDeviceId = SDL_GetAudioStreamDevice(gAudioEngineOutputStream);
+    SDL_ResumeAudioStreamDevice(gAudioEngineOutputStream);
 
     return true;
 }
@@ -119,7 +146,8 @@ bool audioEngineInit()
 void audioEngineExit()
 {
     if (audioEngineIsInitialized()) {
-        SDL_CloseAudioDevice(gAudioEngineDeviceId);
+        SDL_DestroyAudioStream(gAudioEngineOutputStream);
+        gAudioEngineOutputStream = NULL;
         gAudioEngineDeviceId = -1;
     }
 
@@ -131,14 +159,14 @@ void audioEngineExit()
 void audioEnginePause()
 {
     if (audioEngineIsInitialized()) {
-        SDL_PauseAudioDevice(gAudioEngineDeviceId, 1);
+        SDL_PauseAudioStreamDevice(gAudioEngineOutputStream);
     }
 }
 
 void audioEngineResume()
 {
     if (audioEngineIsInitialized()) {
-        SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
+        SDL_ResumeAudioStreamDevice(gAudioEngineOutputStream);
     }
 }
 
@@ -158,12 +186,29 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
             soundBuffer->bitsPerSample = bitsPerSample;
             soundBuffer->channels = channels;
             soundBuffer->rate = rate;
-            soundBuffer->volume = SDL_MIX_MAXVOLUME;
+            soundBuffer->volume = AUDIO_ENGINE_MAX_VOLUME;
             soundBuffer->playing = false;
             soundBuffer->looping = false;
             soundBuffer->pos = 0;
             soundBuffer->data = malloc(size);
-            soundBuffer->stream = SDL_NewAudioStream(bitsPerSample == 16 ? AUDIO_S16 : AUDIO_S8, channels, rate, gAudioEngineSpec.format, gAudioEngineSpec.channels, gAudioEngineSpec.freq);
+            if (soundBuffer->data == NULL) {
+                soundBuffer->active = false;
+                return -1;
+            }
+
+            SDL_AudioSpec srcSpec = { };
+            srcSpec.format = bitsPerSample == 16 ? SDL_AUDIO_S16 : SDL_AUDIO_S8;
+            srcSpec.channels = channels;
+            srcSpec.freq = rate;
+
+            soundBuffer->stream = SDL_CreateAudioStream(&srcSpec, &gAudioEngineSpec);
+            if (soundBuffer->stream == NULL) {
+                free(soundBuffer->data);
+                soundBuffer->data = NULL;
+                soundBuffer->active = false;
+                return -1;
+            }
+
             return index;
         }
     }
@@ -193,7 +238,7 @@ bool audioEngineSoundBufferRelease(int soundBufferIndex)
     free(soundBuffer->data);
     soundBuffer->data = NULL;
 
-    SDL_FreeAudioStream(soundBuffer->stream);
+    SDL_DestroyAudioStream(soundBuffer->stream);
     soundBuffer->stream = NULL;
 
     return true;
