@@ -421,7 +421,7 @@ int mouseSetFrame(char* fileName, int a2)
     // NOTE: Uninline.
     char* sep = strchr(string, ' ');
     if (sep == NULL) {
-        // FIXME: Leaks stream.
+        db_fclose(stream);
         return false;
     }
 
@@ -434,6 +434,8 @@ int mouseSetFrame(char* fileName, int a2)
     animatedData->field_4 = (unsigned char**)mymalloc(sizeof(*animatedData->field_4) * v3, __FILE__, __LINE__); // "..\\int\\MOUSEMGR.C", 361
     animatedData->field_8 = (int*)mymalloc(sizeof(*animatedData->field_8) * v3, __FILE__, __LINE__); // "..\\int\\MOUSEMGR.C", 362
     animatedData->field_C = (int*)mymalloc(sizeof(*animatedData->field_8) * v3, __FILE__, __LINE__); // "..\\int\\MOUSEMGR.C", 363
+    memset(animatedData->field_0, 0, sizeof(*animatedData->field_0) * v3);
+    memset(animatedData->field_4, 0, sizeof(*animatedData->field_4) * v3);
     animatedData->field_18 = v4;
     animatedData->field_1C = currentTimeCallback();
     animatedData->field_26 = 0;
@@ -445,13 +447,15 @@ int mouseSetFrame(char* fileName, int a2)
         animatedData->field_20 = 1;
     }
 
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
+    bool framesLoaded = true;
     for (int index = 0; index < v3; index++) {
         string[0] = '\0';
         db_fgets(string, sizeof(string), stream);
         if (string[0] == '\0') {
             debug_printf("Not enough frames in %s, got %d, needed %d", mangledFileName, index, v3);
+            framesLoaded = false;
             break;
         }
 
@@ -459,8 +463,8 @@ int mouseSetFrame(char* fileName, int a2)
         char* sep = strchr(string, ' ');
         if (sep == NULL) {
             debug_printf("Bad line %s in %s\n", string, fileName);
-            // FIXME: Leaking stream.
-            return false;
+            framesLoaded = false;
+            break;
         }
 
         *sep = '\0';
@@ -470,6 +474,11 @@ int mouseSetFrame(char* fileName, int a2)
         sscanf(sep + 1, "%d %d", &v5, &v6);
 
         animatedData->field_4[index] = loadRawDataFile(mouseNameMangler(string), &width, &height);
+        if (animatedData->field_4[index] == NULL) {
+            framesLoaded = false;
+            break;
+        }
+
         animatedData->field_0[index] = (unsigned char*)mymalloc(width * height, __FILE__, __LINE__); // "..\\int\\MOUSEMGR.C", 390
         memcpy(animatedData->field_0[index], animatedData->field_4[index], width * height);
         datafileConvertData(animatedData->field_0[index], datafileGetPalette(), width, height);
@@ -478,6 +487,26 @@ int mouseSetFrame(char* fileName, int a2)
     }
 
     db_fclose(stream);
+
+    if (!framesLoaded) {
+        for (int index = 0; index < animatedData->frameCount; index++) {
+            if (animatedData->field_0[index] != NULL) {
+                myfree(animatedData->field_0[index], __FILE__, __LINE__);
+            }
+
+            if (animatedData->field_4[index] != NULL) {
+                myfree(animatedData->field_4[index], __FILE__, __LINE__);
+            }
+        }
+
+        myfree(animatedData->field_0, __FILE__, __LINE__);
+        myfree(animatedData->field_4, __FILE__, __LINE__);
+        myfree(animatedData->field_8, __FILE__, __LINE__);
+        myfree(animatedData->field_C, __FILE__, __LINE__);
+        myfree(animatedData, __FILE__, __LINE__);
+
+        return false;
+    }
 
     animatedData->width = width;
     animatedData->height = height;
@@ -625,7 +654,8 @@ bool mouseSetMousePointer(char* fileName)
     } else {
         // NOTE: Uninline.
         char* sep = strchr(string, ' ');
-        if (sep != NULL) {
+        if (sep == NULL) {
+            db_fclose(stream);
             return 0;
         }
 

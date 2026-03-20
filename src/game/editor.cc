@@ -868,7 +868,6 @@ static int CharEditStart()
         while (--i >= 0) {
             art_ptr_unlock(grph_key[i]);
         }
-        return -1;
 
         art_ptr_unlock(bck_key);
 
@@ -3445,8 +3444,8 @@ static int OptionWindow()
         text_font(103);
 
         int err = 0;
-        unsigned char* down[5];
-        unsigned char* up[5];
+        unsigned char* down[5] = { NULL };
+        unsigned char* up[5] = { NULL };
         int size = width * height;
         int y = 17;
         int index;
@@ -3488,8 +3487,11 @@ static int OptionWindow()
         }
 
         if (err != 0) {
+            index--;
+
             if (err == 2) {
                 mem_free(down[index]);
+                down[index] = NULL;
             }
 
             while (--index >= 0) {
@@ -4558,7 +4560,7 @@ static int DrawCard(int graphicId, const char* name, const char* attributes, cha
     int descriptionFontLineHeight = text_height();
 
     if (word_wrap(description, v9 + 136, beginnings, &beginningsCount) != 0) {
-        // TODO: Leaking graphic handle.
+        art_ptr_unlock(graphicHandle);
         return -1;
     }
 
