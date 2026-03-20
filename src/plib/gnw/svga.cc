@@ -22,7 +22,6 @@ SDL_Renderer* gSdlRenderer = NULL;
 SDL_Texture* gSdlTexture = NULL;
 SDL_Surface* gSdlTextureSurface = NULL;
 
-// TODO: Remove once migration to update-render cycle is completed.
 FpsLimiter sharedFpsLimiter;
 
 // 0x4CB310

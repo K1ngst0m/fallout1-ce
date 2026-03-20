@@ -1,22 +1,17 @@
 # Fallout Community Edition
 
-Fallout Community Edition is a fully working re-implementation of Fallout, with the same original gameplay, engine bugfixes, and some quality of life improvements, that works (mostly) hassle-free on multiple platforms.
+Fallout Community Edition is a re-implementation of Fallout with the original gameplay, engine bugfixes, and a few quality-of-life improvements. This repository supports Linux only.
 
 There is also [Fallout 2 Community Edition](https://github.com/alexbatalov/fallout2-ce).
 
 ## Installation
 
-You must own the game to play. Purchase your copy on [GOG](https://www.gog.com/game/fallout) or [Steam](https://store.steampowered.com/app/38400). Download latest [release](https://github.com/alexbatalov/fallout1-ce/releases) or build from source. You can also check latest [debug](https://github.com/alexbatalov/fallout1-ce/actions) build intended for testers.
+You must own the game to play. Purchase your copy on [GOG](https://www.gog.com/game/fallout) or [Steam](https://store.steampowered.com/app/38400), then download the latest [release](https://github.com/alexbatalov/fallout1-ce/releases) or build from source.
 
-### Windows
+Linux only:
 
-Download and copy `fallout-ce.exe` to your `Fallout` folder. It serves as a drop-in replacement for `falloutw.exe`.
-
-### Linux
-
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout` folder somewhere, for example `/home/john/Desktop/Fallout`.
-
-- Alternatively you can extract the needed files from the GoG installer:
+- Prepare a `Fallout` directory with the original game data: `master.dat`, `critter.dat`, and `data/`.
+- If needed, extract the files from the GOG installer:
 
 ```console
 $ sudo apt install innoextract
@@ -24,8 +19,7 @@ $ innoextract ~/Downloads/setup_fallout_2.1.0.18.exe -I app
 $ mv app Fallout
 ```
 
-- Download and copy `fallout-ce` to this folder.
-
+- Copy `fallout-ce` into that directory.
 - Install [SDL2](https://libsdl.org/download-2.0.php):
 
 ```console
@@ -33,52 +27,6 @@ $ sudo apt install libsdl2-2.0-0
 ```
 
 - Run `./fallout-ce`.
-
-### macOS
-
-> **NOTE**: macOS 10.11 (El Capitan) or higher is required. Runs natively on Intel-based Macs and Apple Silicon.
-
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout` folder somewhere, for example `/Applications/Fallout`.
-
-- Alternatively you can use Fallout from MacPlay/The Omni Group as a base - you need to extract game assets from the original bundle. Mount CD/DMG, right click `Fallout` -> `Show Package Contents`, navigate to `Contents/Resources`. Copy `GameData` folder somewhere, for example `/Applications/Fallout`.
-
-- Or if you're a Terminal user and have Homebrew installed you can extract the needed files from the GoG installer:
-
-```console
-$ brew install innoextract
-$ innoextract ~/Downloads/setup_fallout_2.1.0.18.exe -I app
-$ mv app /Applications/Fallout
-```
-
-- Download and copy `fallout-ce.app` to this folder.
-
-- Run `fallout-ce.app`.
-
-### Android
-
-> **NOTE**: Fallout was designed with mouse in mind. There are many controls that require precise cursor positioning, which is not possible with fingers. Current control scheme resembles trackpad usage:
-> - One finger moves mouse cursor around.
-> - Tap one finger for left mouse click.
-> - Tap two fingers for right mouse click (switches mouse cursor mode).
-> - Move two fingers to scroll current view (map view, worldmap view, inventory scrollers).
-
-> **NOTE**: From Android standpoint release and debug builds are different apps. Both apps require their own copy of game assets and have their own savegames. This is intentional. As a gamer just stick with release version and check for updates.
-
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout` folder to your device, for example to `Downloads`. You need `master.dat`, `critter.dat`, and `data` folder. Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
-
-- Download `fallout-ce.apk` and copy it to your device. Open it with file explorer, follow instructions (install from unknown source).
-
-- When you run the game for the first time it will immediately present file picker. Select the folder from the first step. Wait until this data is copied. A loading dialog will appear, just wait for about 30 seconds. The game will start automatically.
-
-### iOS
-
-> **NOTE**: See Android note on controls.
-
-- Download `fallout-ce.ipa`. Use sideloading applications ([AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)) to install it to your device. Alternatively you can always build from source with your own signing certificate.
-
-- Run the game once. You'll see error message saying "Could not find the master datafile...". This step is needed for iOS to expose the game via File Sharing feature.
-
-- Use Finder (macOS Catalina and later) or iTunes (Windows and macOS Mojave or earlier) to copy `master.dat`, `critter.dat`, and `data` folder to "Fallout" app ([how-to](https://support.apple.com/HT210598)). Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
 
 ## Configuration
 
@@ -95,10 +43,8 @@ SCR_HEIGHT=720
 WINDOWED=1
 ```
 
-Recommendations:
-- **Desktops**: Use any size you see fit.
-- **Tablets**: Set these values to logical resolution of your device, for example iPad Pro 11 is 1668x2388 (pixels), but it's logical resolution is 834x1194 (points).
-- **Mobile phones**: Set height to 480, calculate width according to your device screen (aspect) ratio, for example Samsung S21 is 20:9 device, so the width should be 480 * 20 / 9 = 1067.
+Recommendation:
+- **Linux desktop**: Use any size you see fit.
 
 In time this stuff will receive in-game interface, right now you have to do it manually.
 

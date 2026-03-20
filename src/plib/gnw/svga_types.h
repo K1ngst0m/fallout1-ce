@@ -3,10 +3,9 @@
 
 namespace fallout {
 
-// NOTE: These typedefs always appear in this order in every implementation file
-// with extended debug info. However `mouse.c` does not have DirectX types
-// implying it does not include `svga.h` which does so to expose primary
-// DirectDraw objects.
+// NOTE: These typedefs always appear in this order in implementation files
+// with extended debug info. `mouse.c` lacks them, implying it does not include
+// `svga.h`.
 
 typedef void(UpdatePaletteFunc)();
 typedef void(ResetModeFunc)();

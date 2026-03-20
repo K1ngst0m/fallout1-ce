@@ -1,5 +1,0 @@
-/.cxx
-/build
-
-# TODO: Cleanup root .gitignore
-!/src/debug

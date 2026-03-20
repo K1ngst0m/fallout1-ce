@@ -1,15 +1,5 @@
 #include "main.h"
 
-// NOTE: Actual file name is unknown. Functions in this module do not present
-// in debug symbols from `mapper2.exe`. In OS X binary these functions appear
-// very far from the ones found in `mainmenu.c`, implying they are in separate
-// compilation unit. In Windows binary these functions appear between
-// `loadsave.c` and `mainmenu.c`. Based on the order it's file name should be
-// between these two, so `main.c` is a perfect candidate, but again, it's just a
-// guess.
-//
-// Function names and visibility scope are from in OS X binary.
-
 #include <limits.h>
 #include <stddef.h>
 

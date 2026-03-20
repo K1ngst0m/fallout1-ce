@@ -5,11 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
-#include <windows.h>
-#else
 #include <dirent.h>
-#endif
 
 #include <fpattern/fpattern.h>
 
@@ -23,11 +19,7 @@ namespace fallout {
 #define DB_DATABASE_FILE_LIST_CAPACITY 32
 #define DB_HASH_TABLE_SIZE 4095
 
-#if defined(_WIN32)
-#define PATH_SEP '\\'
-#else
 #define PATH_SEP '/'
-#endif
 
 typedef struct DB_FILE {
     DB_DATABASE* database;
@@ -58,14 +50,9 @@ typedef struct DB_DATABASE {
 } DB_DATABASE;
 
 typedef struct DB_FIND_DATA {
-#if defined(_WIN32)
-    HANDLE hFind;
-    WIN32_FIND_DATAA ffd;
-#else
     DIR* dir;
     struct dirent* entry;
     char path[COMPAT_MAX_PATH];
-#endif
 } DB_FIND_DATA;
 
 static int db_read_long(FILE* stream, int* value_ptr);
@@ -1732,7 +1719,6 @@ int db_get_file_list(const char* filespec, char*** filelist, char*** desclist, i
             // thus allows indexed access) to the second part (which are actual
             // storage for strings 13 bytes each).
             //
-            // NOTE: The size of storage is 33 bytes in Mac OS binary.
             *filelist = (char**)internal_malloc((sizeof(char*) + 13) * ary.size);
             if (*filelist != NULL) {
                 for (index = 0; index < ary.size; index++) {
@@ -2193,11 +2179,7 @@ static int db_fill_hash_table(DB_DATABASE* database, const char* path)
         return -1;
     }
 
-#if defined(_WIN32)
-    snprintf(pattern, sizeof(pattern), "%s%s", path, "*.*");
-#else
     snprintf(pattern, sizeof(pattern), "%s%s", path, "*");
-#endif
     compat_windows_path_to_native(pattern);
 
     if (db_findfirst(pattern, &find_data) != -1) {
@@ -2562,12 +2544,6 @@ static int db_find_dir_entry(char* path, dir_entry* de)
 // 0x4B2810
 static int db_findfirst(const char* path, DB_FIND_DATA* findData)
 {
-#if defined(_WIN32)
-    findData->hFind = FindFirstFileA(path, &(findData->ffd));
-    if (findData->hFind == INVALID_HANDLE_VALUE) {
-        return -1;
-    }
-#else
     strcpy(findData->path, path);
 
     char drive[COMPAT_MAX_DRIVE];
@@ -2598,7 +2574,6 @@ static int db_findfirst(const char* path, DB_FIND_DATA* findData)
         findData->dir = NULL;
         return -1;
     }
-#endif
 
     return 0;
 }
@@ -2606,11 +2581,6 @@ static int db_findfirst(const char* path, DB_FIND_DATA* findData)
 // 0x4B2838
 static int db_findnext(DB_FIND_DATA* findData)
 {
-#if defined(_WIN32)
-    if (!FindNextFileA(findData->hFind, &(findData->ffd))) {
-        return -1;
-    }
-#else
     char drive[COMPAT_MAX_DRIVE];
     char dir[COMPAT_MAX_DIR];
     compat_splitpath(findData->path, drive, dir, NULL, NULL);
@@ -2630,7 +2600,6 @@ static int db_findnext(DB_FIND_DATA* findData)
         findData->dir = NULL;
         return -1;
     }
-#endif
 
     return 0;
 }
@@ -2638,17 +2607,11 @@ static int db_findnext(DB_FIND_DATA* findData)
 // 0x4B2854
 static int db_findclose(DB_FIND_DATA* findData)
 {
-#if defined(_WIN32)
-    if (!FindClose(findData->hFind)) {
-        return -1;
-    }
-#else
     if (findData->dir != NULL) {
         if (closedir(findData->dir) != 0) {
             return -1;
         }
     }
-#endif
 
     return 0;
 }
@@ -2740,22 +2703,12 @@ static int fread_short(FILE* stream, unsigned short* s)
 
 static inline bool fileFindIsDirectory(DB_FIND_DATA* findData)
 {
-#if defined(_WIN32)
-    return (findData->ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-#elif defined(__WATCOMC__)
-    return (findData->entry->d_attr & _A_SUBDIR) != 0;
-#else
     return findData->entry->d_type == DT_DIR;
-#endif
 }
 
 static inline char* fileFindGetName(DB_FIND_DATA* findData)
 {
-#if defined(_WIN32)
-    return findData->ffd.cFileName;
-#else
     return findData->entry->d_name;
-#endif
 }
 
 int db_freadUInt8(DB_FILE* stream, unsigned char* valuePtr)

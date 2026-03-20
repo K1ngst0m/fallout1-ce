@@ -64,7 +64,7 @@ static unsigned int GNW95_repeat_rate = 80;
 // 0x539D78
 static unsigned int GNW95_repeat_delay = 500;
 
-// A map of DIK_* constants normalized for QWERTY keyboard.
+// A map of SDL scancodes normalized for QWERTY keyboard.
 //
 // 0x6713F0
 static int GNW95_key_map[SDL_NUM_SCANCODES];
