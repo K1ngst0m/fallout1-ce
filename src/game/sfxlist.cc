@@ -370,10 +370,16 @@ static int sfxl_get_sizes()
                     return 1;
                 }
 
-                int channels;
-                int sampleRate;
-                int sampleCount;
+                int channels = 0;
+                int sampleRate = 0;
+                int sampleCount = 0;
                 AudioDecoder* ad = Create_AudioDecoder(sfxl_ad_reader, stream, &channels, &sampleRate, &sampleCount);
+                if (ad == NULL) {
+                    db_fclose(stream);
+                    mem_free(path);
+                    return SFXL_ERR;
+                }
+
                 entry->dataSize = 2 * sampleCount;
                 AudioDecoder_Close(ad);
                 db_fclose(stream);

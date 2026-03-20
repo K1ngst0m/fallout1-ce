@@ -1378,7 +1378,7 @@ Object* pick_object(int objectType, bool a2)
 {
     Object* foundObject;
     int mouseEvent;
-    int keyCode;
+    int keyCode = 0;
 
     foundObject = NULL;
 

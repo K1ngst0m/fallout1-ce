@@ -2862,8 +2862,8 @@ void object_animate()
             }
 
             if ((sad_entry->flags & ANIM_SAD_FOREVER) != 0 || object->frame != 0) {
-                int x;
-                int y;
+                int x = 0;
+                int y = 0;
 
                 CacheEntry* cacheHandle;
                 Art* art = art_ptr_lock(object->fid, &cacheHandle);

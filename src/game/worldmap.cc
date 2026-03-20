@@ -3176,7 +3176,7 @@ WorldMapContext town_map(WorldMapContext ctx)
             art_ptr_unlock(tmapidsav[index]);
         }
         art_ptr_unlock(tmap_pic_key);
-        // FIXME: Leaking `onbtn`.
+        mem_free(onbtn);
         return new_ctx;
     }
 
@@ -3186,8 +3186,8 @@ WorldMapContext town_map(WorldMapContext ctx)
             art_ptr_unlock(tmapidsav[index]);
         }
         art_ptr_unlock(tmap_pic_key);
-        // FIXME: Leaking `offbtn`.
-        // FIXME: Leaking `onbtn`.
+        mem_free(offbtn);
+        mem_free(onbtn);
         return new_ctx;
     }
 
@@ -3513,6 +3513,10 @@ static void HvrOffBtn(int btn, int input)
         if (brnpos[entrance].bid == btn) {
             break;
         }
+    }
+
+    if (entrance >= 7) {
+        return;
     }
 
     for (px = 0; px < 4100; px++) {

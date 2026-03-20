@@ -2085,7 +2085,7 @@ static void kb_init_lock_status()
         kb_lock_flags |= MODIFIER_KEY_STATE_NUM_LOCK;
     }
 
-#if SDL_VERSION_ATLEAST(2, 0, 18)
+#ifdef SDL_KMOD_SCROLL
     if ((SDL_GetModState() & SDL_KMOD_SCROLL) != 0) {
         kb_lock_flags |= MODIFIER_KEY_STATE_SCROLL_LOCK;
     }
