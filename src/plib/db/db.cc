@@ -7,6 +7,8 @@
 
 #include <dirent.h>
 
+#include <cstdint>
+
 #include <fpattern/fpattern.h>
 
 #include "platform_compat.h"
@@ -59,8 +61,8 @@ static int db_read_long(FILE* stream, int* value_ptr);
 static int db_write_long(FILE* stream, int value);
 static int db_assoc_load_dir_entry(FILE* stream, void* buffer, size_t size, int flags);
 static int db_assoc_save_dir_entry(FILE* stream, void* buffer, size_t size, int flags);
-static int db_assoc_load_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags);
-static int db_assoc_save_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags);
+[[maybe_unused]] static int db_assoc_load_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags);
+[[maybe_unused]] static int db_assoc_save_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags);
 static int db_create_database(DB_DATABASE** database_ptr);
 static int db_destroy_database(DB_DATABASE** database_ptr);
 static int db_init_database(DB_DATABASE* database, const char* datafile, const char* datafile_path);
@@ -134,6 +136,8 @@ static DB_DATABASE* database_list[DB_DATABASE_LIST_CAPACITY];
 // 0x4AEE90
 DB_DATABASE* db_init(const char* datafile, const char* datafile_path, const char* patches_path, int show_cursor)
 {
+    (void)show_cursor;
+
     DB_DATABASE* database;
 
     if (db_create_database(&database) != 0) {
@@ -333,10 +337,10 @@ int db_read_to_buf(const char* filename, unsigned char* buf)
     bool v3;
     FILE* stream;
     int hash_value;
-    int size;
+    size_t size;
     size_t bytes_read;
-    int remaining_size;
-    int chunk_size;
+    size_t remaining_size;
+    size_t chunk_size;
     dir_entry de;
     unsigned char* end;
     unsigned short v4;
@@ -378,13 +382,23 @@ int db_read_to_buf(const char* filename, unsigned char* buf)
         }
 
         if (stream != NULL) {
-            size = getFileSize(stream);
+            size = static_cast<size_t>(getFileSize(stream));
             if (read_callback != NULL) {
                 remaining_size = size;
                 chunk_size = read_threshold - read_count;
+                if (chunk_size == 0) {
+                    read_count = 0;
+                    read_callback();
+                    chunk_size = read_threshold;
+                }
 
                 while (remaining_size >= chunk_size) {
                     bytes_read = fread(buf, 1, chunk_size, stream);
+                    if (bytes_read != chunk_size) {
+                        fclose(stream);
+                        return -1;
+                    }
+
                     buf += bytes_read;
                     remaining_size -= bytes_read;
 
@@ -395,11 +409,20 @@ int db_read_to_buf(const char* filename, unsigned char* buf)
                 }
 
                 if (remaining_size != 0) {
-                    fread(buf, 1, remaining_size, stream);
-                    read_count += remaining_size;
+                    bytes_read = fread(buf, 1, remaining_size, stream);
+                    if (bytes_read != remaining_size) {
+                        fclose(stream);
+                        return -1;
+                    }
+
+                    read_count += bytes_read;
                 }
             } else {
-                fread(buf, 1, size, stream);
+                bytes_read = fread(buf, 1, size, stream);
+                if (bytes_read != size) {
+                    fclose(stream);
+                    return -1;
+                }
             }
 
             fclose(stream);
@@ -440,11 +463,20 @@ int db_read_to_buf(const char* filename, unsigned char* buf)
         break;
     case 32:
         if (read_callback != NULL) {
-            remaining_size = de.length;
+            remaining_size = static_cast<size_t>(de.length);
             chunk_size = read_threshold - read_count;
+            if (chunk_size == 0) {
+                read_count = 0;
+                read_callback();
+                chunk_size = read_threshold;
+            }
 
             while (remaining_size >= chunk_size) {
                 bytes_read = fread(buf, 1, chunk_size, current_database->stream);
+                if (bytes_read != chunk_size) {
+                    return -1;
+                }
+
                 buf += bytes_read;
                 remaining_size -= bytes_read;
 
@@ -455,51 +487,66 @@ int db_read_to_buf(const char* filename, unsigned char* buf)
             }
 
             if (remaining_size != 0) {
-                fread(buf, 1, remaining_size, current_database->stream);
-                read_count += remaining_size;
+                bytes_read = fread(buf, 1, remaining_size, current_database->stream);
+                if (bytes_read != remaining_size) {
+                    return -1;
+                }
+
+                read_count += bytes_read;
             }
         } else {
-            fread(buf, 1, de.length, current_database->stream);
+            bytes_read = fread(buf, 1, static_cast<size_t>(de.length), current_database->stream);
+            if (bytes_read != static_cast<size_t>(de.length)) {
+                return -1;
+            }
         }
         break;
     case 64:
         end = buf + de.length;
         if (read_callback != NULL) {
             while (buf < end) {
-                if (fread_short(current_database->stream, &v4) == 0) {
-                    if ((v4 & 0x8000) != 0) {
-                        v4 &= ~0x8000;
-                        bytes_read = fread(buf, 1, v4, current_database->stream);
+                if (fread_short(current_database->stream, &v4) != 0) {
+                    return -1;
+                }
 
-                        buf += bytes_read;
-                        read_count += bytes_read;
-
-                        while (read_count >= read_threshold) {
-                            read_count -= read_threshold;
-                            read_callback();
-                        }
-                    } else {
-                        read_count += lzss_decode_to_buf(current_database->stream, buf, v4);
-                        while (read_count >= read_threshold) {
-                            read_count -= read_threshold;
-                            read_callback();
-                        }
+                if ((v4 & 0x8000) != 0) {
+                    v4 &= ~0x8000;
+                    bytes_read = fread(buf, 1, v4, current_database->stream);
+                    if (bytes_read != v4) {
+                        return -1;
                     }
+                } else {
+                    bytes_read = lzss_decode_to_buf(current_database->stream, buf, v4);
+                }
+
+                buf += bytes_read;
+                read_count += bytes_read;
+
+                while (read_count >= read_threshold) {
+                    read_count -= read_threshold;
+                    read_callback();
                 }
             }
         } else {
             while (buf < end) {
-                if (fread_short(current_database->stream, &v4) == 0) {
-                    if ((v4 & 0x8000) != 0) {
-                        v4 &= ~0x8000;
-                        fread(buf, 1, v4, current_database->stream);
-                        buf += v4;
-                    } else {
-                        buf += lzss_decode_to_buf(current_database->stream, buf, v4);
-                    }
+                if (fread_short(current_database->stream, &v4) != 0) {
+                    return -1;
                 }
+
+                if ((v4 & 0x8000) != 0) {
+                    v4 &= ~0x8000;
+                    bytes_read = fread(buf, 1, v4, current_database->stream);
+                    if (bytes_read != v4) {
+                        return -1;
+                    }
+                } else {
+                    bytes_read = lzss_decode_to_buf(current_database->stream, buf, v4);
+                }
+
+                buf += bytes_read;
             }
         }
+        break;
     }
 
     return 0;
@@ -657,8 +704,8 @@ int db_fclose(DB_FILE* stream)
 // 0x4AFD50
 size_t db_fread(void* ptr, size_t size, size_t count, DB_FILE* stream)
 {
-    int remaining_size;
-    int chunk_size;
+    size_t remaining_size;
+    size_t chunk_size;
     size_t bytes_read;
     unsigned char* buf;
     size_t elements_read;
@@ -1260,7 +1307,8 @@ int db_freadFloat(DB_FILE* stream, float* q)
         return -1;
     }
 
-    *q = *(float*)&l;
+    std::uint32_t bits = static_cast<std::uint32_t>(l & 0xFFFFFFFFUL);
+    memcpy(q, &bits, sizeof(bits));
 
     return 0;
 }
@@ -1316,8 +1364,10 @@ int db_fwriteLong(DB_FILE* stream, unsigned long l)
 // 0x4B099C
 int db_fwriteFloat(DB_FILE* stream, float q)
 {
-    // NOTE: Uninline.
-    return db_fwriteLong(stream, *(unsigned long*)&q);
+    std::uint32_t bits;
+    memcpy(&bits, &q, sizeof(bits));
+
+    return db_fwriteLong(stream, static_cast<unsigned long>(bits));
 }
 
 // 0x4B09D4
@@ -1761,6 +1811,8 @@ void db_free_file_list(char*** file_list, char*** desclist)
 // 0x4B1554
 static int db_assoc_load_dir_entry(FILE* stream, void* buffer, size_t size, int flags)
 {
+    (void)flags;
+
     dir_entry* de;
     if (size != sizeof(*de)) return -1;
 
@@ -1778,6 +1830,8 @@ static int db_assoc_load_dir_entry(FILE* stream, void* buffer, size_t size, int 
 // 0x4B159C
 static int db_assoc_save_dir_entry(FILE* stream, void* buffer, size_t size, int flags)
 {
+    (void)flags;
+
     dir_entry* de;
 
     if (size != sizeof(*de)) return -1;
@@ -1794,8 +1848,10 @@ static int db_assoc_save_dir_entry(FILE* stream, void* buffer, size_t size, int 
 // NOTE: Originally not static.
 //
 // 0x4B15E4
-static int db_assoc_load_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags)
+[[maybe_unused]] static int db_assoc_load_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags)
 {
+    (void)flags;
+
     dir_entry* de;
     if (size != sizeof(*de)) return -1;
 
@@ -1811,8 +1867,10 @@ static int db_assoc_load_db_dir_entry(DB_FILE* stream, void* buffer, size_t size
 // NOTE: Originally not static.
 //
 // 0x4B162C
-static int db_assoc_save_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags)
+[[maybe_unused]] static int db_assoc_save_db_dir_entry(DB_FILE* stream, void* buffer, size_t size, int flags)
 {
+    (void)flags;
+
     dir_entry* de;
 
     if (size != sizeof(*de)) return -1;
@@ -2658,6 +2716,7 @@ static void db_default_free(void* ptr)
 static void db_preload_buffer(DB_FILE* stream)
 {
     unsigned short v1;
+    size_t bytes_read;
 
     if ((stream->flags & 0x8) != 0 && (stream->flags & 0xF0) == 64) {
         if (stream->field_10 != 0) {
@@ -2666,7 +2725,11 @@ static void db_preload_buffer(DB_FILE* stream)
                     if (fread_short(stream->database->stream, &v1) == 0) {
                         if ((v1 & 0x8000) != 0) {
                             v1 &= ~0x8000;
-                            fread(stream->field_1C, 1, v1, stream->database->stream);
+                            bytes_read = fread(stream->field_1C, 1, v1, stream->database->stream);
+                            if (bytes_read != v1) {
+                                stream->field_10 = 0;
+                                return;
+                            }
                         } else {
                             lzss_decode_to_buf(stream->database->stream, stream->field_1C, v1);
                         }

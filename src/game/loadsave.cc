@@ -2130,7 +2130,7 @@ static int GetComment(int a1)
         lsbmp[LOAD_SAVE_FRM_RED_BUTTON_PRESSED],
         NULL,
         BUTTON_FLAG_TRANSPARENT);
-    if (btn == -1) {
+    if (btn != -1) {
         win_register_button_sound_func(btn, gsound_red_butt_press, gsound_red_butt_release);
     }
 
@@ -2148,7 +2148,7 @@ static int GetComment(int a1)
         lsbmp[LOAD_SAVE_FRM_RED_BUTTON_PRESSED],
         NULL,
         BUTTON_FLAG_TRANSPARENT);
-    if (btn == -1) {
+    if (btn != -1) {
         win_register_button_sound_func(btn, gsound_red_butt_press, gsound_red_butt_release);
     }
 
