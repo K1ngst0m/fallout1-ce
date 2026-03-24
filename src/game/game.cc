@@ -53,6 +53,7 @@
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/grbuf.h"
 #include "plib/gnw/input.h"
+#include "plib/gnw/lifecycle.h"
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
 #include "plib/gnw/text.h"
@@ -128,6 +129,9 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
 {
     char path[COMPAT_MAX_PATH];
 
+    lifecycle_reset();
+    lifecycle_set_phase(LIFECYCLE_PHASE_STARTUP);
+
     if (gmemory_init() == -1) {
         return -1;
     }
@@ -177,7 +181,12 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
         config_exit(&resolutionConfig);
     }
 
-    initWindow(&video_options, flags);
+    if (initWindow(&video_options, flags) == -1) {
+        db_exit();
+        gconfig_exit(false);
+        return -1;
+    }
+
     palette_init();
 
     if (!game_in_mapper) {
@@ -343,6 +352,8 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
     }
 
     debug_printf(">init_options_menu\n");
+
+    lifecycle_set_phase(LIFECYCLE_PHASE_RUNNING);
 
     return 0;
 }

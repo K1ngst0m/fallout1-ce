@@ -1,7 +1,6 @@
 #include "int/window.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "game/game.h"
@@ -16,6 +15,7 @@
 #include "plib/gnw/button.h"
 #include "plib/gnw/grbuf.h"
 #include "plib/gnw/input.h"
+#include "plib/gnw/lifecycle.h"
 #include "plib/gnw/svga.h"
 #include "plib/gnw/text.h"
 
@@ -90,7 +90,8 @@ static void doRightButtonPress(int btn, int keyCode);
 static void doRightButtonProc(int btn, int mouseEvent);
 static void doRightButtonRelease(int btn, int keyCode);
 static void setButtonGFX(int width, int height, unsigned char* normal, unsigned char* pressed, unsigned char* a5);
-static void redrawButton(ManagedButton* button);
+[[maybe_unused]] static void redrawButton(ManagedButton* button);
+static int windowReportInitFailure(int errorCode, const char* message);
 static void windowRemoveProgramReferences(Program* program);
 
 // 0x50868C
@@ -243,6 +244,11 @@ int windowSetHighlightColor(float r, float g, float b)
 // 0x4A2E0C
 static bool checkRegion(int windowIndex, int mouseX, int mouseY, int mouseEvent)
 {
+    (void)windowIndex;
+    (void)mouseX;
+    (void)mouseY;
+    (void)mouseEvent;
+
     // TODO: Incomplete.
     return false;
 }
@@ -499,6 +505,7 @@ int getInput()
 // 0x4A3A88
 static void doButtonOn(int btn, int keyCode)
 {
+    (void)keyCode;
     doButtonProc(btn, MANAGED_BUTTON_MOUSE_EVENT_ENTER);
 }
 
@@ -536,24 +543,28 @@ static void doButtonProc(int btn, int mouseEvent)
 // 0x4A3B50
 static void doButtonOff(int btn, int keyCode)
 {
+    (void)keyCode;
     doButtonProc(btn, MANAGED_BUTTON_MOUSE_EVENT_EXIT);
 }
 
 // 0x4A3B5C
 static void doButtonPress(int btn, int keyCode)
 {
+    (void)keyCode;
     doButtonProc(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_DOWN);
 }
 
 // 0x4A3B64
 static void doButtonRelease(int btn, int keyCode)
 {
+    (void)keyCode;
     doButtonProc(btn, MANAGED_BUTTON_MOUSE_EVENT_BUTTON_UP);
 }
 
 // 0x4A3B70
 static void doRightButtonPress(int btn, int keyCode)
 {
+    (void)keyCode;
     doRightButtonProc(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_DOWN);
 }
 
@@ -591,6 +602,7 @@ static void doRightButtonProc(int btn, int mouseEvent)
 // 0x4A3C34
 static void doRightButtonRelease(int btn, int keyCode)
 {
+    (void)keyCode;
     doRightButtonProc(btn, MANAGED_BUTTON_RIGHT_MOUSE_EVENT_BUTTON_UP);
 }
 
@@ -636,7 +648,7 @@ static void setButtonGFX(int width, int height, unsigned char* normal, unsigned 
 }
 
 // 0x4A411C
-static void redrawButton(ManagedButton* button)
+[[maybe_unused]] static void redrawButton(ManagedButton* button)
 {
     win_register_button_image(button->btn, button->normal, button->pressed, button->hover, 0);
 }
@@ -842,6 +854,12 @@ bool deleteWindow(const char* windowName)
 // 0x4A45EC
 int resizeWindow(const char* windowName, int x, int y, int width, int height)
 {
+    (void)windowName;
+    (void)x;
+    (void)y;
+    (void)width;
+    (void)height;
+
     // TODO: Incomplete.
     return -1;
 }
@@ -849,6 +867,12 @@ int resizeWindow(const char* windowName, int x, int y, int width, int height)
 // 0x4A49A4
 int scaleWindow(const char* windowName, int x, int y, int width, int height)
 {
+    (void)windowName;
+    (void)x;
+    (void)y;
+    (void)width;
+    (void)height;
+
     // TODO: Incomplete.
     return -1;
 }
@@ -1433,6 +1457,8 @@ int windowDisplayScaled(char* fileName, int x, int y, int width, int height)
 // 0x4A59FC
 bool windowDisplayBuf(unsigned char* src, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight)
 {
+    (void)srcHeight;
+
     ManagedWindow* managedWindow = &(windows[currentWindow]);
     unsigned char* windowBuffer = win_get_buf(managedWindow->window);
 
@@ -1449,6 +1475,8 @@ bool windowDisplayBuf(unsigned char* src, int srcWidth, int srcHeight, int destX
 // 0x4A5A70
 int windowDisplayTransBuf(unsigned char* src, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight)
 {
+    (void)srcHeight;
+
     unsigned char* windowBuffer;
 
     windowBuffer = win_get_buf(windows[currentWindow].window);
@@ -1494,6 +1522,18 @@ int windowGetYres()
 }
 
 // 0x4A5B64
+static int windowReportInitFailure(int errorCode, const char* message)
+{
+    if (message != NULL && message[0] != '\0') {
+        GNWSystemError(message);
+    }
+
+    lifecycle_report_startup_failure(LIFECYCLE_REASON_WINDOW_SYSTEM, errorCode);
+
+    return -1;
+}
+
+// 0x4A5B64
 static void windowRemoveProgramReferences(Program* program)
 {
     for (int index = 0; index < MANAGED_WINDOW_COUNT; index++) {
@@ -1527,7 +1567,7 @@ static void windowRemoveProgramReferences(Program* program)
 }
 
 // 0x4A5C9C
-void initWindow(VideoOptions* video_options, int flags)
+int initWindow(VideoOptions* video_options, int flags)
 {
     char err[COMPAT_MAX_PATH];
     int rc;
@@ -1556,62 +1596,39 @@ void initWindow(VideoOptions* video_options, int flags)
         switch (rc) {
         case WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE:
             snprintf(err, sizeof(err), "Error initializing video mode %dx%d\n", xres, yres);
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_NO_MEMORY:
             snprintf(err, sizeof(err), "Not enough memory to initialize video mode\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_INITIALIZING_TEXT_FONTS:
             snprintf(err, sizeof(err), "Couldn't find/load text fonts\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_WINDOW_SYSTEM_ALREADY_INITIALIZED:
             snprintf(err, sizeof(err), "Attempt to initialize window system twice\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_WINDOW_SYSTEM_NOT_INITIALIZED:
             snprintf(err, sizeof(err), "Window system not initialized\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_CURRENT_WINDOWS_TOO_BIG:
             snprintf(err, sizeof(err), "Current windows are too big for new resolution\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_INITIALIZING_DEFAULT_DATABASE:
             snprintf(err, sizeof(err), "Error initializing default database.\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_8:
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, NULL);
         case WINDOW_MANAGER_ERR_ALREADY_RUNNING:
             snprintf(err, sizeof(err), "Program already running.\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_TITLE_NOT_SET:
             snprintf(err, sizeof(err), "Program title not set.\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         case WINDOW_MANAGER_ERR_INITIALIZING_INPUT:
             snprintf(err, sizeof(err), "Failure initializing input devices.\n");
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         default:
             snprintf(err, sizeof(err), "Unknown error code %d\n", rc);
-            GNWSystemError(err);
-            exit(1);
-            break;
+            return windowReportInitFailure(rc, err);
         }
     }
 
@@ -1627,6 +1644,8 @@ void initWindow(VideoOptions* video_options, int flags)
             alphaBlendTable[(i << 8) + j] = ((i * j) >> 9);
         }
     }
+
+    return 0;
 }
 
 // 0x4A5F60
@@ -1673,7 +1692,7 @@ void windowClose()
 // 0x4A6054
 bool windowDeleteButton(const char* buttonName)
 {
-    if (currentWindow != -1) {
+    if (currentWindow == -1) {
         return false;
     }
 
@@ -1807,7 +1826,7 @@ int windowGetButtonID(const char* buttonName)
 // 0x4A6434
 bool windowSetButtonFlag(const char* buttonName, int value)
 {
-    if (currentWindow != -1) {
+    if (currentWindow == -1) {
         return false;
     }
 
@@ -2109,7 +2128,7 @@ bool windowAddButtonProc(const char* buttonName, Program* program, int mouseEnte
 // 0x4A6CB4
 bool windowAddButtonRightProc(const char* buttonName, Program* program, int rightMouseDownProc, int rightMouseUpProc)
 {
-    if (currentWindow != -1) {
+    if (currentWindow == -1) {
         return false;
     }
 
@@ -2134,7 +2153,7 @@ bool windowAddButtonRightProc(const char* buttonName, Program* program, int righ
 // 0x4A6D38
 bool windowAddButtonCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
 {
-    if (currentWindow != -1) {
+    if (currentWindow == -1) {
         return false;
     }
 
@@ -2158,7 +2177,7 @@ bool windowAddButtonCfunc(const char* buttonName, ManagedButtonMouseEventCallbac
 // 0x4A6DB4
 bool windowAddButtonRightCfunc(const char* buttonName, ManagedButtonMouseEventCallback* callback, void* userData)
 {
-    if (currentWindow != -1) {
+    if (currentWindow == -1) {
         return false;
     }
 

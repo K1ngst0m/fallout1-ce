@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include "game/amutex.h"
 #include "game/main.h"
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/svga.h"
@@ -17,14 +18,20 @@ bool GNW95_isActive = false;
 // 0x6B0760
 char GNW95_title[256];
 
-int main(int argc, char* argv[])
+static int main_immediate(int argc, char* argv[])
 {
-    int rc;
+    if (!autorun_mutex_create()) {
+        return -1;
+    }
 
-    SDL_HideCursor();
+    int rc = -1;
 
-    GNW95_isActive = true;
-    rc = gnw_main(argc, argv);
+    if (main_init_system(argc, argv) == 0) {
+        rc = main_run_system();
+        main_exit_system();
+    }
+
+    autorun_mutex_destroy();
 
     return rc;
 }
@@ -33,5 +40,13 @@ int main(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    return fallout::main(argc, argv);
+    SDL_HideCursor();
+
+    fallout::GNW95_isActive = true;
+
+    int rc = fallout::main_immediate(argc, argv);
+
+    SDL_Quit();
+
+    return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

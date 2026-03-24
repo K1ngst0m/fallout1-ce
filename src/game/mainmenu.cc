@@ -15,6 +15,7 @@
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/grbuf.h"
 #include "plib/gnw/input.h"
+#include "plib/gnw/lifecycle.h"
 #include "plib/gnw/svga.h"
 #include "plib/gnw/text.h"
 
@@ -366,6 +367,10 @@ int main_menu_loop()
                 }
                 continue;
             }
+        }
+
+        if (lifecycle_is_quit_requested()) {
+            game_user_wants_to_quit = 3;
         }
 
         if (keyCode == KEY_ESCAPE || game_user_wants_to_quit == 3) {
