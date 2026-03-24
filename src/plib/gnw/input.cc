@@ -10,7 +10,9 @@
 #include "plib/gnw/dxinput.h"
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/grbuf.h"
+#include "plib/gnw/input_runtime.h"
 #include "plib/gnw/intrface.h"
+#include "plib/gnw/lifecycle.h"
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
 #include "plib/gnw/text.h"
@@ -49,6 +51,7 @@ static int default_pause_window();
 static void buf_blit(unsigned char* src, unsigned int src_pitch, unsigned int a3, unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned int dest_x, unsigned int dest_y);
 static void GNW95_build_key_map();
 static void GNW95_process_key(KeyboardData* data);
+static void GNW95_sync_mouse_capture();
 
 static void idleImpl();
 
@@ -184,11 +187,7 @@ int get_input()
 {
     int v3;
 
-    GNW95_process_message();
-
-    if (!GNW95_isActive) {
-        GNW95_lost_focus();
-    }
+    GNW95_process_mouse_events();
 
     process_bk();
 
@@ -1121,20 +1120,25 @@ void GNW95_process_message()
             break;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
             GNW95_isActive = true;
+            input_runtime_set_active(true);
+            input_runtime_set_focused(true);
             win_refresh_all(&scr_size);
             audioEngineResume();
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             GNW95_isActive = false;
+            input_runtime_set_active(false);
+            input_runtime_set_focused(false);
             audioEnginePause();
             break;
         case SDL_EVENT_QUIT:
-            exit(EXIT_SUCCESS);
+            lifecycle_request_quit(LIFECYCLE_REASON_WINDOW_CLOSE);
             break;
         }
     }
 
     touch_process_gesture();
+    GNW95_sync_mouse_capture();
 
     if (GNW95_isActive && !kb_is_disabled()) {
         // NOTE: Uninline
@@ -1155,6 +1159,32 @@ void GNW95_process_message()
                 }
             }
         }
+    }
+}
+
+void GNW95_process_mouse_events()
+{
+    GNW95_process_message();
+
+    if (!GNW95_isActive && !lifecycle_is_quit_requested()) {
+        GNW95_lost_focus();
+    }
+}
+
+static void GNW95_sync_mouse_capture()
+{
+    if (gSdlWindow == NULL || !input_runtime_has_pending_mouse_capture_sync()) {
+        return;
+    }
+
+    InputRuntimeState state = input_runtime_get_state();
+    bool shouldApplyMouseCapture = input_runtime_should_apply_mouse_capture();
+    if (state.mouseCaptureApplied == shouldApplyMouseCapture) {
+        return;
+    }
+
+    if (SDL_SetWindowRelativeMouseMode(gSdlWindow, shouldApplyMouseCapture)) {
+        input_runtime_set_mouse_capture_applied(shouldApplyMouseCapture);
     }
 }
 
@@ -1205,7 +1235,7 @@ void GNW95_lost_focus()
         focus_func(0);
     }
 
-    while (!GNW95_isActive) {
+    while (!GNW95_isActive && !lifecycle_is_quit_requested()) {
         GNW95_process_message();
 
         if (idle_func != NULL) {
@@ -1213,7 +1243,7 @@ void GNW95_lost_focus()
         }
     }
 
-    if (focus_func != NULL) {
+    if (GNW95_isActive && focus_func != NULL) {
         focus_func(1);
     }
 }

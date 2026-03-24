@@ -31,6 +31,7 @@ bool dxinput_init()
 
 err:
 
+    dxinput_keyboard_exit();
     dxinput_mouse_exit();
 
     return false;
@@ -39,32 +40,28 @@ err:
 // 0x4E0478
 void dxinput_exit()
 {
+    dxinput_keyboard_exit();
+    dxinput_mouse_exit();
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
 }
 
 // 0x4E04E8
-bool dxinput_acquire_mouse()
+bool dxinput_acquire_mouse(InputRuntimeCaptureRequestSource source)
 {
+    input_runtime_request_mouse_capture(source);
     return true;
 }
 
 // 0x4E0514
 bool dxinput_unacquire_mouse()
 {
+    input_runtime_release_mouse_capture();
     return true;
 }
 
 // 0x4E053C
 bool dxinput_get_mouse_state(MouseData* mouseState)
 {
-    // CE: This function is sometimes called outside loops calling `get_input`
-    // and subsequently `GNW95_process_message`, so mouse events might not be
-    // handled by SDL yet.
-    //
-    // TODO: Move mouse events processing into `GNW95_process_message` and
-    // update mouse position manually.
-    SDL_PumpEvents();
-
     float x;
     float y;
     SDL_MouseButtonFlags buttons = SDL_GetRelativeMouseState(&x, &y);
@@ -103,18 +100,25 @@ bool dxinput_flush_keyboard_buffer()
 // 0x4E0650
 bool dxinput_read_keyboard_buffer(KeyboardData* keyboardData)
 {
+    (void)keyboardData;
     return true;
 }
 
 // 0x4E070C
 bool dxinput_mouse_init()
 {
-    return gSdlWindow != nullptr && SDL_SetWindowRelativeMouseMode(gSdlWindow, true);
+    if (gSdlWindow == nullptr) {
+        return false;
+    }
+
+    input_runtime_reset();
+    return true;
 }
 
 // 0x4E078C
 void dxinput_mouse_exit()
 {
+    input_runtime_set_mouse_capture_applied(false);
 }
 
 // 0x4E07B8

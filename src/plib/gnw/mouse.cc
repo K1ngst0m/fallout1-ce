@@ -137,7 +137,10 @@ int GNW_mouse_init()
         return -1;
     }
 
-    if (!dxinput_acquire_mouse()) {
+    // Temporary Linux desktop-default capture bridge. Remove once host-owned
+    // capture policy requests/release capture directly instead of relying on
+    // GNW_mouse_init/GNW_mouse_exit to preserve desktop-runtime startup behavior.
+    if (!dxinput_acquire_mouse(INPUT_RUNTIME_CAPTURE_REQUEST_SOURCE_LINUX_STARTUP_ADAPTER)) {
         return -1;
     }
 
@@ -154,6 +157,8 @@ int GNW_mouse_init()
 // 0x4B4818
 void GNW_mouse_exit()
 {
+    // Keep the temporary Linux desktop-default bridge symmetric on shutdown
+    // until host-owned capture policy takes over request/release ownership.
     dxinput_unacquire_mouse();
 
     if (mouse_buf != NULL) {
@@ -416,6 +421,8 @@ void mouse_hide()
 // 0x4B4DD8
 void mouse_info()
 {
+    GNW95_process_mouse_events();
+
     if (!have_mouse) {
         return;
     }
@@ -751,6 +758,8 @@ bool mouse_query_exist()
 // 0x4B53E4
 void mouse_get_raw_state(int* x, int* y, int* buttons)
 {
+    GNW95_process_mouse_events();
+
     MouseData mouseData;
     if (!dxinput_get_mouse_state(&mouseData)) {
         mouseData.x = 0;

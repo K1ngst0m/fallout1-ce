@@ -3,6 +3,8 @@
 
 #include <SDL3/SDL.h>
 
+#include "plib/gnw/input_runtime.h"
+
 namespace fallout {
 
 typedef struct MouseData {
@@ -20,7 +22,7 @@ typedef struct KeyboardData {
 
 bool dxinput_init();
 void dxinput_exit();
-bool dxinput_acquire_mouse();
+bool dxinput_acquire_mouse(InputRuntimeCaptureRequestSource source = INPUT_RUNTIME_CAPTURE_REQUEST_SOURCE_EXPLICIT);
 bool dxinput_unacquire_mouse();
 bool dxinput_get_mouse_state(MouseData* mouseData);
 bool dxinput_acquire_keyboard();
