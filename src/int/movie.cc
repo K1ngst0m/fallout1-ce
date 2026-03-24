@@ -34,7 +34,7 @@ typedef struct MovieSubtitleListNode {
 
 static void* movieMalloc(size_t size);
 static void movieFree(void* ptr);
-static bool movieRead(int fileHandle, void* buf, int count);
+static bool movieRead(void* handle, void* buf, int count);
 static void movie_MVE_ShowFrame(SDL_Surface* a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9);
 static void movieShowFrame(SDL_Surface* a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9);
 static int movieScaleSubRect(int win, unsigned char* data, int width, int height, int pitch);
@@ -51,7 +51,7 @@ static DB_FILE* openFile(char* filePath);
 static void openSubtitle(char* filePath);
 static void doSubtitle();
 static int movieStart(int win, char* filePath, int (*a3)());
-static bool localMovieCallback();
+[[maybe_unused]] static bool localMovieCallback();
 static int stepMovie();
 
 // 0x505B30
@@ -243,13 +243,15 @@ static void movieFree(void* ptr)
 // 0x47843C
 static bool movieRead(void* handle, void* buf, int count)
 {
-    return db_fread(buf, 1, count, reinterpret_cast<DB_FILE*>(handle)) == count;
+    return db_fread(buf, 1, count, reinterpret_cast<DB_FILE*>(handle)) == static_cast<size_t>(count);
 }
 
 // 0x478464
 static void movie_MVE_ShowFrame(SDL_Surface* surface, int srcWidth, int srcHeight, int srcX, int srcY, int destWidth, int destHeight, int a8, int a9)
 {
-    int v14;
+    (void)a8;
+    (void)a9;
+
     int v15;
 
     SDL_Rect srcRect;
@@ -258,7 +260,6 @@ static void movie_MVE_ShowFrame(SDL_Surface* surface, int srcWidth, int srcHeigh
     srcRect.w = srcWidth;
     srcRect.h = srcHeight;
 
-    v14 = winRect.lrx - winRect.ulx;
     v15 = winRect.lrx - winRect.ulx + 1;
 
     SDL_Rect destRect;
@@ -322,6 +323,9 @@ static void movie_MVE_ShowFrame(SDL_Surface* surface, int srcWidth, int srcHeigh
 // 0x478710
 static void movieShowFrame(SDL_Surface* a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9)
 {
+    (void)a8;
+    (void)a9;
+
     if (GNWWin == -1) {
         return;
     }
@@ -411,6 +415,12 @@ static int movieScaleSubRect(int win, unsigned char* data, int width, int height
 // 0x478A84
 static int movieScaleWindowAlpha(int win, unsigned char* data, int width, int height, int pitch)
 {
+    (void)win;
+    (void)data;
+    (void)width;
+    (void)height;
+    (void)pitch;
+
     movieFlags |= 1;
     return 0;
 }
@@ -418,6 +428,12 @@ static int movieScaleWindowAlpha(int win, unsigned char* data, int width, int he
 // 0x478A84
 static int movieScaleSubRectAlpha(int win, unsigned char* data, int width, int height, int pitch)
 {
+    (void)win;
+    (void)data;
+    (void)width;
+    (void)height;
+    (void)pitch;
+
     movieFlags |= 1;
     return 0;
 }
@@ -782,7 +798,7 @@ static void doSubtitle()
 
         win_fill(GNWWin, 0, v2, subtitleW, subtitleH, 0);
 
-        int oldFont;
+        int oldFont = -1;
         if (subtitleFont != -1) {
             oldFont = text_curr();
             text_font(subtitleFont);
@@ -895,7 +911,7 @@ static int movieStart(int win, char* filePath, int (*a3)())
 }
 
 // 0x479768
-static bool localMovieCallback()
+[[maybe_unused]] static bool localMovieCallback()
 {
     doSubtitle();
 

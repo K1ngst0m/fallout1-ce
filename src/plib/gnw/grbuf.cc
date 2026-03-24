@@ -250,6 +250,14 @@ void buf_fill(unsigned char* buf, int width, int height, int pitch, int a5)
 // 0x4BE170
 void buf_texture(unsigned char* buf, int width, int height, int pitch, void* a5, int a6, int a7)
 {
+    (void)buf;
+    (void)width;
+    (void)height;
+    (void)pitch;
+    (void)a5;
+    (void)a6;
+    (void)a7;
+
     // TODO: Incomplete.
 }
 

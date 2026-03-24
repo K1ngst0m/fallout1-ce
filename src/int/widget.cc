@@ -70,8 +70,8 @@ typedef struct TextRegion {
     int font;
 } TextRegion;
 
-static void deleteChar(char* string, int pos, int length);
-static void insertChar(char* string, char ch, int pos, int length);
+[[maybe_unused]] static void deleteChar(char* string, int pos, int length);
+[[maybe_unused]] static void insertChar(char* string, char ch, int pos, int length);
 static void textInputRegionDispatch(int btn, int inputEvent);
 static void showRegion(UpdateRegion* updateRegion);
 static void freeStatusBar();
@@ -99,7 +99,7 @@ static int statusBarActive;
 static int numTextRegions;
 
 // 0x4A10E0
-static void deleteChar(char* string, int pos, int length)
+[[maybe_unused]] static void deleteChar(char* string, int pos, int length)
 {
     if (length > pos) {
         memcpy(string + pos, string + pos + 1, length - pos);
@@ -107,7 +107,7 @@ static void deleteChar(char* string, int pos, int length)
 }
 
 // 0x4A1108
-static void insertChar(char* string, char ch, int pos, int length)
+[[maybe_unused]] static void insertChar(char* string, char ch, int pos, int length)
 {
     if (length >= pos) {
         if (length > pos) {
@@ -120,6 +120,9 @@ static void insertChar(char* string, char ch, int pos, int length)
 // 0x4A12C4
 static void textInputRegionDispatch(int btn, int inputEvent)
 {
+    (void)btn;
+    (void)inputEvent;
+
     // TODO: Incomplete.
 }
 
@@ -512,7 +515,7 @@ int win_center_str(int win, char* string, int y, int a4)
 // 0x4A25A4
 static void showRegion(UpdateRegion* updateRegion)
 {
-    float value;
+    float value = 0.0f;
     char stringBuffer[80];
 
     switch (updateRegion->type & 0xFF) {
@@ -736,6 +739,8 @@ static void drawStatusBar()
 // 0x4A2A98
 void real_win_set_status_bar(int a1, int a2, int a3)
 {
+    (void)a1;
+
     if (statusBarActive) {
         statusBar.field_1C = a2;
         statusBar.field_20 = a2;
@@ -796,6 +801,8 @@ void real_win_add_status_bar(int win, int a2, char* a3, char* a4, int x, int y)
 // 0x4A2C04
 void real_win_get_status_info(int a1, int* a2, int* a3, int* a4)
 {
+    (void)a1;
+
     if (statusBarActive) {
         *a2 = statusBar.field_1C;
         *a3 = statusBar.field_20;
@@ -810,6 +817,8 @@ void real_win_get_status_info(int a1, int* a2, int* a3, int* a4)
 // 0x4A2C38
 void real_win_modify_status_info(int a1, int a2, int a3, int a4)
 {
+    (void)a1;
+
     if (statusBarActive) {
         statusBar.field_1C = a2;
         statusBar.field_20 = a3;

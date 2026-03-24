@@ -34,13 +34,13 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length);
 static void audioEngineCallback(void* userData, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
 
 static SDL_AudioSpec gAudioEngineSpec;
-static SDL_AudioDeviceID gAudioEngineDeviceId = -1;
+static SDL_AudioDeviceID gAudioEngineDeviceId = 0;
 static SDL_AudioStream* gAudioEngineOutputStream = NULL;
 static AudioEngineSoundBuffer gAudioEngineSoundBuffers[AUDIO_ENGINE_SOUND_BUFFERS];
 
 static bool audioEngineIsInitialized()
 {
-    return gAudioEngineDeviceId != -1;
+    return gAudioEngineDeviceId != 0;
 }
 
 static bool soundBufferIsValid(int soundBufferIndex)
@@ -71,6 +71,8 @@ static void audioEngineCallback(void* userData, SDL_AudioStream* stream, int add
 
 static void audioEngineMixin(void* userData, Uint8* stream, int length)
 {
+    (void)userData;
+
     memset(stream, SDL_GetSilenceValueForFormat(gAudioEngineSpec.format), length);
 
     if (!GNW95_isActive) {
@@ -88,7 +90,7 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
             int pos = 0;
             while (pos < length) {
                 int remaining = length - pos;
-                if (remaining > sizeof(buffer)) {
+                if (remaining > static_cast<int>(sizeof(buffer))) {
                     remaining = sizeof(buffer);
                 }
 
@@ -148,7 +150,7 @@ void audioEngineExit()
     if (audioEngineIsInitialized()) {
         SDL_DestroyAudioStream(gAudioEngineOutputStream);
         gAudioEngineOutputStream = NULL;
-        gAudioEngineDeviceId = -1;
+        gAudioEngineDeviceId = 0;
     }
 
     if (SDL_WasInit(SDL_INIT_AUDIO)) {
@@ -290,6 +292,8 @@ bool audioEngineSoundBufferGetVolume(int soundBufferIndex, int* volumePtr)
 
 bool audioEngineSoundBufferSetPan(int soundBufferIndex, int pan)
 {
+    (void)pan;
+
     if (!audioEngineIsInitialized()) {
         return false;
     }
@@ -459,7 +463,6 @@ bool audioEngineSoundBufferLock(int soundBufferIndex, unsigned int writePos, uns
             *audioBytes2 = 0;
         }
     } else {
-        unsigned int remainder = writePos + writeBytes - soundBuffer->size;
         *(unsigned char**)audioPtr1 = (unsigned char*)soundBuffer->data + writePos;
         *audioBytes1 = soundBuffer->size - writePos;
 
@@ -479,6 +482,11 @@ bool audioEngineSoundBufferLock(int soundBufferIndex, unsigned int writePos, uns
 
 bool audioEngineSoundBufferUnlock(int soundBufferIndex, void* audioPtr1, unsigned int audioBytes1, void* audioPtr2, unsigned int audioBytes2)
 {
+    (void)audioPtr1;
+    (void)audioBytes1;
+    (void)audioPtr2;
+    (void)audioBytes2;
+
     if (!audioEngineIsInitialized()) {
         return false;
     }

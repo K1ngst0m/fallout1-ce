@@ -26,16 +26,16 @@ typedef struct key_data_t {
 typedef int(AsciiConvert)();
 
 static int kb_next_ascii_English_US();
-static int kb_next_ascii_French();
-static int kb_next_ascii_German();
-static int kb_next_ascii_Italian();
-static int kb_next_ascii_Spanish();
+[[maybe_unused]] static int kb_next_ascii_French();
+[[maybe_unused]] static int kb_next_ascii_German();
+[[maybe_unused]] static int kb_next_ascii_Italian();
+[[maybe_unused]] static int kb_next_ascii_Spanish();
 static int kb_next_ascii();
 static void kb_map_ascii_English_US();
-static void kb_map_ascii_French();
-static void kb_map_ascii_German();
-static void kb_map_ascii_Italian();
-static void kb_map_ascii_Spanish();
+[[maybe_unused]] static void kb_map_ascii_French();
+[[maybe_unused]] static void kb_map_ascii_German();
+[[maybe_unused]] static void kb_map_ascii_Italian();
+[[maybe_unused]] static void kb_map_ascii_Spanish();
 static void kb_init_lock_status();
 static void kb_toggle_caps();
 static void kb_toggle_num();
@@ -61,9 +61,6 @@ static int kb_put = 0;
 
 // 0x539E14
 static int kb_get = 0;
-
-// 0x539E18
-static unsigned short extended_code = 0;
 
 // 0x539E1A
 static unsigned char kb_lock_flags = 0;
@@ -278,11 +275,11 @@ int kb_ascii_to_scan(int ascii)
     int k;
 
     for (k = 0; k < 256; k++) {
-        if (ascii_table[k].normal == k
-            || ascii_table[k].shift == k
-            || ascii_table[k].left_alt == k
-            || ascii_table[k].right_alt == k
-            || ascii_table[k].ctrl == k) {
+        if (ascii_table[k].normal == ascii
+            || ascii_table[k].shift == ascii
+            || ascii_table[k].left_alt == ascii
+            || ascii_table[k].right_alt == ascii
+            || ascii_table[k].ctrl == ascii) {
             return k;
         }
     }
@@ -1917,7 +1914,7 @@ static void kb_map_ascii_Italian()
 }
 
 // 0x4BC5FC
-static void kb_map_ascii_Spanish()
+[[maybe_unused]] static void kb_map_ascii_Spanish()
 {
     int k;
 

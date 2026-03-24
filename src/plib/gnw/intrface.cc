@@ -20,11 +20,11 @@ static int create_pull_down(char** stringList, int stringListLength, int x, int 
 static void win_debug_delete(int btn, int keyCode);
 static int find_first_letter(int ch, char** stringList, int stringListLength);
 static int process_pull_down(int win, Rect* rect, char** items, int itemsLength, int foregroundColor, int backgroundColor, MenuBar* menuBar, int pulldownIndex);
-static int calc_max_field_chars_wcursor(int value1, int value2);
+[[maybe_unused]] static int calc_max_field_chars_wcursor(int value1, int value2);
 static void tm_watch_msgs();
 static void tm_kill_msg();
 static void tm_kill_out_of_order(int queueIndex);
-static void tm_click_response(int btn);
+[[maybe_unused]] static void tm_click_response(int btn);
 static int tm_index_active(int queueIndex);
 
 // 0x53A268
@@ -708,6 +708,15 @@ static int create_pull_down(char** stringList, int stringListLength, int x, int 
 // 0x4C80E4
 static int process_pull_down(int win, Rect* rect, char** items, int itemsLength, int foregroundColor, int backgroundColor, MenuBar* menuBar, int pulldownIndex)
 {
+    (void)win;
+    (void)rect;
+    (void)items;
+    (void)itemsLength;
+    (void)foregroundColor;
+    (void)backgroundColor;
+    (void)menuBar;
+    (void)pulldownIndex;
+
     // TODO: Incomplete.
     return -1;
 }
@@ -837,6 +846,9 @@ int win_debug(char* string)
 // 0x4C8A3C
 static void win_debug_delete(int btn, int keyCode)
 {
+    (void)btn;
+    (void)keyCode;
+
     win_delete(wd);
     wd = -1;
 }
@@ -1168,7 +1180,7 @@ int win_input_str(int win, char* dest, int maxLength, int x, int y, int textColo
 // Calculates max length of string needed to represent value1 or value2.
 //
 // 0x4C941C
-static int calc_max_field_chars_wcursor(int value1, int value2)
+[[maybe_unused]] static int calc_max_field_chars_wcursor(int value1, int value2)
 {
     char* str = (char*)mem_malloc(17);
     if (str == NULL) {
@@ -1317,7 +1329,7 @@ static void tm_kill_out_of_order(int queueIndex)
 }
 
 // 0x4C9C04
-static void tm_click_response(int btn)
+[[maybe_unused]] static void tm_click_response(int btn)
 {
     int win;
     int queueIndex;
