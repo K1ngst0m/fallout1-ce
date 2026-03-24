@@ -44,31 +44,15 @@ jobs:
         run: find src -type f -name \*.cc -o -name \*.h | xargs clang-format --dry-run --Werror
 
   linux:
-    name: Linux (${{ matrix.arch }})
+    name: Linux
 
     runs-on: ubuntu-20.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - x86
-          - x64
 
     steps:
       - name: Clone
         uses: actions/checkout@v4
 
-      - name: Dependencies (x86)
-        if: matrix.arch == 'x86'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt update
-          sudo apt install --allow-downgrades libpcre2-8-0=10.34-7
-          sudo apt install g++-multilib libsdl3-dev:i386 zlib1g-dev:i386
-
-      - name: Dependencies (x64)
-        if: matrix.arch == 'x64'
+      - name: Dependencies
         run: |
           sudo apt update
           sudo apt install libsdl3-dev zlib1g-dev
@@ -77,19 +61,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: linux-${{ matrix.arch }}-cmake-v2
+          key: linux-cmake-v3
 
-      - name: Configure (x86)
-        if: matrix.arch == 'x86'
-        run: |
-          cmake \
-            -B build \
-            -D CMAKE_BUILD_TYPE=RelWithDebInfo \
-            -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain/Linux32.cmake \
-            # EOL
-
-      - name: Configure (x64)
-        if: matrix.arch == 'x64'
+      - name: Configure
         run: |
           cmake \
             -B build \
@@ -106,6 +80,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: fallout-ce-linux-${{ matrix.arch }}
-          path:  build/fallout-ce
+          name: fallout-ce-linux
+          path: build/fallout-ce
           retention-days: 7

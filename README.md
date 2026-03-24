@@ -19,13 +19,16 @@ $ innoextract ~/Downloads/setup_fallout_2.1.0.18.exe -I app
 $ mv app Fallout
 ```
 
-- Copy `fallout-ce` into that directory.
-- Install [SDL2](https://libsdl.org/download-2.0.php):
+- To build from source on Linux, install the SDL3 development package and the current build dependencies:
 
 ```console
-$ sudo apt install libsdl2-2.0-0
+$ sudo apt install cmake g++ libsdl3-dev zlib1g-dev
+$ cmake -B build -D CMAKE_BUILD_TYPE=RelWithDebInfo
+$ cmake --build build -j $(nproc)
 ```
 
+- If you downloaded a release, copy `fallout-ce` into that directory.
+- If you built from source, copy `build/fallout-ce` into that directory.
 - Run `./fallout-ce`.
 
 ## Configuration
