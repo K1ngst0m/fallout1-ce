@@ -413,6 +413,90 @@ function writeBrowserConfigFiles() {
     console.log('[fallout-ce] Wrote browser config files to MEMFS');
 }
 
+function buildFalloutCfg() {
+    return [
+        '[system]',
+        'master_dat=master.dat',
+        'master_patches=data',
+        'critter_dat=critter.dat',
+        'critter_patches=data',
+        'language=english',
+        'hashing=1',
+        'splash=0',
+        'art_cache_size=8',
+        'color_cycling=1',
+        'cycle_speed_factor=1',
+        'interrupt_walk=1',
+        'scroll_lock=0',
+        'free_space=0',
+        'executable=game',
+        'times_run=0',
+        '',
+        '[sound]',
+        'initialize=1',
+        'music=1',
+        'sounds=1',
+        'speech=1',
+        'master_volume=22281',
+        'music_volume=22281',
+        'sndfx_volume=22281',
+        'speech_volume=22281',
+        'cache_size=448',
+        'music_path1=data/sound/music/',
+        'music_path2=data/sound/music/',
+        'device=-1',
+        'port=-1',
+        'irq=-1',
+        'dma=-1',
+        '',
+        '[preferences]',
+        'game_difficulty=1',
+        'combat_difficulty=1',
+        'violence_level=3',
+        'target_highlight=1',
+        'item_highlight=1',
+        'combat_looks=1',
+        'combat_messages=1',
+        'combat_taunts=1',
+        'language_filter=0',
+        'running=1',
+        'subtitles=1',
+        'combat_speed=50',
+        'player_speed=0',
+        'brightness=1.000000',
+        'mouse_sensitivity=1.000000',
+        'text_base_delay=3.500000',
+        'text_line_delay=1.000000',
+        'running_burning_guy=1',
+        'player_speedup=1',
+        '',
+        '[debug]',
+        'mode=environment',
+        'show_tile_num=0',
+        'show_script_messages=0',
+        'show_load_info=0',
+        'output_map_data_info=0',
+        ''
+    ].join('\n');
+}
+
+function buildBrowserF1ResIni() {
+    return [
+        '[MAIN]',
+        'SCR_WIDTH=640',
+        'SCR_HEIGHT=480',
+        'WINDOWED=1',
+        'SCALE_2X=0',
+        ''
+    ].join('\n');
+}
+
+function writeBrowserConfigFiles() {
+    Module.FS.writeFile('/fallout.cfg', buildFalloutCfg());
+    Module.FS.writeFile('/f1_res.ini', buildBrowserF1ResIni());
+    console.log('[fallout-ce] Wrote browser config files to MEMFS');
+}
+
 var Module = {
     canvas: document.getElementById('canvas'),
     noInitialRun: true,
@@ -545,6 +629,8 @@ startBtn.addEventListener('click', function() {
     var canvas = document.getElementById('canvas');
     document.body.classList.add('game-running');
     installWebMouseBridge(canvas);
+
+    writeBrowserConfigFiles();
 
     writeBrowserConfigFiles();
 
