@@ -1136,11 +1136,18 @@ void GNW95_process_message()
             audioEngineResume();
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
+#ifdef __EMSCRIPTEN__
+            // Under Emscripten, don't deactivate — the blocking lost-focus
+            // loop is bypassed anyway, and pausing audio/input on every
+            // canvas blur makes the browser experience unusable.
+            break;
+#else
             GNW95_isActive = false;
             input_runtime_set_active(false);
             input_runtime_set_focused(false);
             audioEnginePause();
             break;
+#endif
         case SDL_EVENT_QUIT:
             lifecycle_request_quit(LIFECYCLE_REASON_WINDOW_CLOSE);
             break;
@@ -1176,9 +1183,16 @@ void GNW95_process_mouse_events()
 {
     GNW95_process_message();
 
+#ifdef __EMSCRIPTEN__
+    // Under Emscripten the browser manages focus — the blocking
+    // GNW95_lost_focus() while-loop would freeze the tab.  Skip it;
+    // the engine keeps running regardless of canvas focus state.
+    (void)0;
+#else
     if (!GNW95_isActive && !lifecycle_is_quit_requested()) {
         GNW95_lost_focus();
     }
+#endif
 }
 
 static void GNW95_sync_mouse_capture()

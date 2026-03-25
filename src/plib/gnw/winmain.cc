@@ -40,8 +40,9 @@ static int main_immediate(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+#ifndef __EMSCRIPTEN__
     SDL_HideCursor();
-
+#endif
     fallout::GNW95_isActive = true;
 
     int rc = fallout::main_immediate(argc, argv);
