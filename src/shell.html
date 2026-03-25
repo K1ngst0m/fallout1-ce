@@ -160,6 +160,7 @@ canvas {
     <h1>Fallout 1 — Community Edition</h1>
     <p>Select your Fallout 1 game folder (containing master.dat, critter.dat, and data/).</p>
     <button id="import-button" class="overlay-button">Select Game Folder</button>
+    <input id="import-directory-input" type="file" webkitdirectory directory multiple class="hidden">
     <button id="start-button" class="overlay-button" disabled>Click to Start</button>
     <div id="import-status"></div>
 </div>
@@ -519,8 +520,87 @@ var Module = {
 var statusEl = document.getElementById('import-status');
 var startBtn = document.getElementById('start-button');
 var importBtn = document.getElementById('import-button');
+var importInput = document.getElementById('import-directory-input');
 
-// --- Data import via File System Access API (Chromium) ---
+function normalizeImportPath(path) {
+    return '/' + String(path || '')
+        .split('/')
+        .filter(Boolean)
+        .join('/')
+        .toLowerCase();
+}
+
+function stripSelectedRoot(path) {
+    var parts = String(path || '')
+        .split('/')
+        .filter(Boolean);
+
+    if (parts.length > 1) {
+        parts.shift();
+    }
+
+    return parts.join('/');
+}
+
+function buildFileEntries(fileList) {
+    return Array.from(fileList || []).map(function(file) {
+        return {
+            path: normalizeImportPath(stripSelectedRoot(file.webkitRelativePath || file.name)),
+            getFile: function() {
+                return Promise.resolve(file);
+            }
+        };
+    });
+}
+
+async function importEntries(entries) {
+    importBtn.disabled = true;
+    statusEl.textContent = 'Scanning folder…';
+
+    try {
+        statusEl.textContent = 'Found ' + entries.length + ' files. Importing…';
+
+        var topNames = entries.map(function(entry) {
+            return entry.path.split('/')[1];
+        });
+        if (topNames.indexOf('master.dat') === -1) {
+            statusEl.textContent = 'Error: master.dat not found in selected folder.';
+            importBtn.disabled = false;
+            return;
+        }
+
+        var imported = 0;
+
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            try {
+                var file = await entry.getFile();
+                var buffer = new Uint8Array(await file.arrayBuffer());
+                ensureParentDirs(entry.path);
+                Module.FS.writeFile(entry.path, buffer);
+                imported++;
+                if (imported % 100 === 0 || imported === entries.length) {
+                    statusEl.textContent = 'Imported ' + imported + ' / ' + entries.length + ' files…';
+                }
+            } catch (e) {
+                console.warn('[fallout-ce] Skip ' + entry.path + ': ' + e.message);
+            }
+        }
+
+        statusEl.textContent = 'Import complete — ' + imported + ' files. Ready to start!';
+        writeBrowserConfigFiles();
+
+        startBtn.disabled = false;
+        importBtn.textContent = 'Re-import';
+        importBtn.disabled = false;
+    } catch (e) {
+        statusEl.textContent = 'Import failed: ' + e.message;
+        importBtn.disabled = false;
+        console.error('[fallout-ce] Import error:', e);
+    }
+}
+
+// --- Data import via folder file input (Chromium/WebKit) ---
 
 async function readDirRecursive(dirHandle, basePath) {
     var entries = [];
@@ -553,64 +633,21 @@ function ensureParentDirs(filePath) {
     }
 }
 
-importBtn.addEventListener('click', async function() {
-    try {
-        var dirHandle = await window.showDirectoryPicker({ mode: 'read' });
-    } catch (e) {
-        // User cancelled
+importBtn.addEventListener('click', function() {
+    statusEl.textContent = '';
+    importInput.value = '';
+    importInput.click();
+});
+
+importInput.addEventListener('change', async function() {
+    var entries = buildFileEntries(importInput.files);
+    if (entries.length === 0) {
+        statusEl.textContent = 'Folder selection cancelled.';
         return;
     }
 
-    importBtn.disabled = true;
-    statusEl.textContent = 'Scanning folder…';
-
-    try {
-        var files = await readDirRecursive(dirHandle, '');
-        statusEl.textContent = 'Found ' + files.length + ' files. Importing…';
-
-        // Validate: need master.dat at top level (already lowercased)
-        var topNames = files.map(function(f) { return f.path.split('/')[1]; });
-        if (topNames.indexOf('master.dat') === -1) {
-            statusEl.textContent = 'Error: master.dat not found in selected folder.';
-            importBtn.disabled = false;
-            return;
-        }
-
-
-        var imported = 0;
-
-        for (var i = 0; i < files.length; i++) {
-            var entry = files[i];
-            try {
-                var file = await entry.handle.getFile();
-                var buffer = new Uint8Array(await file.arrayBuffer());
-                ensureParentDirs(entry.path);
-                Module.FS.writeFile(entry.path, buffer);
-                imported++;
-                if (imported % 100 === 0 || imported === files.length) {
-                    statusEl.textContent = 'Imported ' + imported + ' / ' + files.length + ' files…';
-                }
-            } catch (e) {
-                console.warn('[fallout-ce] Skip ' + entry.path + ': ' + e.message);
-            }
-        }
-
-        statusEl.textContent = 'Import complete — ' + imported + ' files. Ready to start!';
-
-        // Write browser-owned config files suitable for the web runtime.
-        // The engine reads dat paths from fallout.cfg and internal render size
-        // from f1_res.ini.
-        writeBrowserConfigFiles();
-
-        startBtn.disabled = false;
-        importBtn.textContent = 'Re-import';
-        importBtn.disabled = false;
-
-    } catch (e) {
-        statusEl.textContent = 'Import failed: ' + e.message;
-        importBtn.disabled = false;
-        console.error('[fallout-ce] Import error:', e);
-    }
+    await importEntries(entries);
+    importInput.value = '';
 });
 
 // --- Engine start ---
