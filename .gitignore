@@ -36,3 +36,24 @@ node_modules/
 __pycache__/
 *.pyc
 .sass-cache/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.env
+.env.*
+!.env.example
+.next/
+dist/
+build/
+.venv/
+venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/
