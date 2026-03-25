@@ -107,12 +107,18 @@ bool dxinput_read_keyboard_buffer(KeyboardData* keyboardData)
 // 0x4E070C
 bool dxinput_mouse_init()
 {
+#ifdef __EMSCRIPTEN__
+    // Relative mouse mode requires pointer lock which the browser may not
+    // grant automatically.  Skip for now — mouse input handling is M003 scope.
+    return true;
+#else
     if (gSdlWindow == nullptr) {
         return false;
     }
 
     input_runtime_reset();
     return true;
+#endif
 }
 
 // 0x4E078C

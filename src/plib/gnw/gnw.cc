@@ -1285,7 +1285,13 @@ bool GNWSystemError(const char* text)
     SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
     SDL_SetCursor(cursor);
     SDL_ShowCursor();
+#ifdef __EMSCRIPTEN__
+    // SDL_ShowSimpleMessageBox is not supported in the browser; fall back to
+    // SDL_Log which Emscripten routes to the JS console.
+    SDL_Log("GNWSystemError: %s", text);
+#else
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, NULL, text, NULL);
+#endif
     SDL_HideCursor();
     SDL_SetCursor(prev);
     SDL_DestroyCursor(cursor);

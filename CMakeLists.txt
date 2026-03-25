@@ -18,13 +18,15 @@ include(CTest)
 
 add_executable(${EXECUTABLE_NAME})
 
-if(ASAN)
-    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
-    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
-endif()
-if(UBSAN)
-    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
-    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+if(NOT EMSCRIPTEN)
+    if(ASAN)
+        target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+        target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+    endif()
+    if(UBSAN)
+        target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+        target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+    endif()
 endif()
 
 target_include_directories(${EXECUTABLE_NAME} PUBLIC src)
@@ -265,16 +267,28 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/plib/gnw/touch.h"
 )
 
-find_package(SDL3 3.2.0 REQUIRED)
-
 add_subdirectory("third_party/adecode")
 target_link_libraries(${EXECUTABLE_NAME} adecode::adecode)
 
 add_subdirectory("third_party/fpattern")
 target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
 
-target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3)
+if(EMSCRIPTEN)
+    # SDL3 is provided as an Emscripten port — no find_package needed.
+    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-sUSE_SDL=3")
+    target_link_options(${EXECUTABLE_NAME} PUBLIC
+        "-sUSE_SDL=3"
+        "-lidbfs.js"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sINITIAL_MEMORY=268435456"
+        "-sSTACK_SIZE=1048576"
+    )
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES SUFFIX ".html")
+else()
+    find_package(SDL3 3.2.0 REQUIRED)
+    target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3)
+endif()
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
     add_subdirectory("tests")
 endif()

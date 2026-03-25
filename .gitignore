@@ -1,5 +1,6 @@
 # Build outputs
 /build
+/build-wasm
 /out
 [Dd]ebug/
 [Rr]elease/
@@ -38,7 +39,6 @@ __pycache__/
 .sass-cache/
 
 # ── GSD baseline (auto-generated) ──
-.gsd
 .DS_Store
 Thumbs.db
 *.swp
