@@ -82,8 +82,11 @@ web-configure: ## Configure the Emscripten web build
 web-build: web-configure ## Build the WebAssembly target
 	$(CMAKE) --build "$(WEB_BUILD_DIR)" -j "$(JOBS)"
 
-web-serve: ## Serve the web build locally on port 8080
-	python3 -m http.server 8080 -d "$(WEB_BUILD_DIR)"
+WEB_PORT ?= 8080
+
+web-serve: web-build ## Serve the web build locally on port 8080
+	@printf "Serving at http://%s:%s/fallout-ce.html\n" "$$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $$4}' | cut -d/ -f1 | head -1 || echo localhost)" "$(WEB_PORT)"
+	python3 -m http.server $(WEB_PORT) -d "$(WEB_BUILD_DIR)"
 
 fmt: ## Format C and C++ sources under src/
 	clang-format -i $(FMT_SOURCES)
