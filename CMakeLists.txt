@@ -282,6 +282,9 @@ if(EMSCRIPTEN)
         "-sALLOW_MEMORY_GROWTH=1"
         "-sINITIAL_MEMORY=268435456"
         "-sSTACK_SIZE=1048576"
+        "-sASYNCIFY"
+        "-sASYNCIFY_STACK_SIZE=32768"
+        "--shell-file" "${CMAKE_SOURCE_DIR}/src/shell.html"
     )
     set_target_properties(${EXECUTABLE_NAME} PROPERTIES SUFFIX ".html")
 else()

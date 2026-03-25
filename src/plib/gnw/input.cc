@@ -3,6 +3,10 @@
 #include <limits.h>
 #include <stdio.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "audio_engine.h"
 #include "platform_compat.h"
 #include "plib/color/color.h"
@@ -660,6 +664,12 @@ void block_for_tocks(unsigned int ms)
     do {
         // NOTE: Uninline
         diff = elapsed_time(start);
+#ifdef __EMSCRIPTEN__
+        if (diff < ms) {
+            unsigned int remaining = ms - diff;
+            emscripten_sleep(remaining < 10 ? remaining : 10);
+        }
+#endif
     } while (diff < ms);
 }
 
