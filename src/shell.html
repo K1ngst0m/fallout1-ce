@@ -26,6 +26,11 @@ body {
     justify-content: center;
 }
 
+body.game-running,
+body.game-running * {
+    cursor: none !important;
+}
+
 canvas {
     display: block;
     max-width: 100vw;
@@ -34,6 +39,7 @@ canvas {
     height: min(100vh, calc(100vw * 3 / 4));
     margin: auto;
     image-rendering: pixelated;
+    cursor: none;
 }
 
 #overlay {
@@ -45,18 +51,25 @@ canvas {
     justify-content: center;
     background: rgba(0, 0, 0, 0.85);
     z-index: 10;
-    cursor: pointer;
 }
 
 #overlay h1 {
     font-size: 2rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
     color: #4f4;
     text-shadow: 0 0 12px rgba(68, 255, 68, 0.5);
 }
 
-#start-button {
-    font-size: 1.5rem;
+#overlay p {
+    color: #aaa;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    text-align: center;
+    max-width: 36em;
+}
+
+.overlay-button {
+    font-size: 1.3rem;
     padding: 0.75rem 2rem;
     background: #4f4;
     color: #000;
@@ -65,10 +78,24 @@ canvas {
     cursor: pointer;
     font-weight: bold;
     transition: background 0.15s;
+    margin: 0.4rem;
 }
 
-#start-button:hover {
+.overlay-button:hover {
     background: #6f6;
+}
+
+.overlay-button:disabled {
+    background: #555;
+    color: #888;
+    cursor: not-allowed;
+}
+
+#import-status {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #ccc;
+    min-height: 1.4em;
 }
 
 #error-overlay {
@@ -131,7 +158,10 @@ canvas {
 
 <div id="overlay">
     <h1>Fallout 1 — Community Edition</h1>
-    <button id="start-button">Click to Start</button>
+    <p>Select your Fallout 1 game folder (containing master.dat, critter.dat, and data/).</p>
+    <button id="import-button" class="overlay-button">Select Game Folder</button>
+    <button id="start-button" class="overlay-button" disabled>Click to Start</button>
+    <div id="import-status"></div>
 </div>
 
 <div id="error-overlay">
@@ -142,11 +172,245 @@ canvas {
 
 <script>
 function showError(msg) {
+    document.body.classList.remove('game-running');
     var errorOverlay = document.getElementById('error-overlay');
     var errorMessage = document.getElementById('error-message');
     errorMessage.textContent = String(msg);
     errorOverlay.style.display = 'flex';
     console.error('[fallout-ce] Fatal: ' + msg);
+}
+
+function getMouseBounds() {
+    var width = 640;
+    var height = 480;
+
+    if (typeof Module !== 'undefined') {
+        if (typeof Module._fallout_get_mouse_bounds_width === 'function') {
+            width = Module._fallout_get_mouse_bounds_width() || width;
+        } else if (Module.canvas && Module.canvas.width > 0) {
+            width = Module.canvas.width;
+        }
+
+        if (typeof Module._fallout_get_mouse_bounds_height === 'function') {
+            height = Module._fallout_get_mouse_bounds_height() || height;
+        } else if (Module.canvas && Module.canvas.height > 0) {
+            height = Module.canvas.height;
+        }
+    }
+
+    return { width: width, height: height };
+}
+
+function clampMouseCoordinate(value, maxExclusive) {
+    if (maxExclusive <= 0) {
+        return 0;
+    }
+
+    return Math.min(Math.max(value, 0), maxExclusive - 1);
+}
+
+function quantizeMousePosition(position, bounds) {
+    return {
+        x: clampMouseCoordinate(Math.round(position.x), bounds.width),
+        y: clampMouseCoordinate(Math.round(position.y), bounds.height)
+    };
+}
+
+function getAbsoluteMousePosition(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var bounds = getMouseBounds();
+    var width = Math.max(rect.width, 1);
+    var height = Math.max(rect.height, 1);
+
+    return quantizeMousePosition({
+        x: (clientX - rect.left) * (bounds.width / width),
+        y: (clientY - rect.top) * (bounds.height / height)
+    }, bounds);
+}
+
+function getRelativeMouseDelta(canvas, movementX, movementY) {
+    var rect = canvas.getBoundingClientRect();
+    var bounds = getMouseBounds();
+    var width = Math.max(rect.width, 1);
+    var height = Math.max(rect.height, 1);
+
+    return {
+        x: movementX * (bounds.width / width),
+        y: movementY * (bounds.height / height)
+    };
+}
+
+function getCurrentMousePosition() {
+    var bounds = getMouseBounds();
+    return quantizeMousePosition({
+        x: typeof Module._fallout_get_mouse_x === 'function' ? Module._fallout_get_mouse_x() : 0,
+        y: typeof Module._fallout_get_mouse_y === 'function' ? Module._fallout_get_mouse_y() : 0
+    }, bounds);
+}
+
+function pushAbsoluteMousePosition(canvas, clientX, clientY) {
+    var position = getAbsoluteMousePosition(canvas, clientX, clientY);
+    Module._fallout_push_mouse_move(position.x, position.y);
+    return position;
+}
+
+function pushRelativeMousePosition(canvas, movementX, movementY) {
+    var current = getCurrentMousePosition();
+    var delta = getRelativeMouseDelta(canvas, movementX, movementY);
+    var bounds = getMouseBounds();
+    var position = quantizeMousePosition({
+        x: current.x + delta.x,
+        y: current.y + delta.y
+    }, bounds);
+
+    Module._fallout_push_mouse_move(position.x, position.y);
+    return position;
+}
+
+function isPointerEventInsideCanvas(canvas, event) {
+    var rect = canvas.getBoundingClientRect();
+    return event.clientX >= rect.left
+        && event.clientX <= rect.right
+        && event.clientY >= rect.top
+        && event.clientY <= rect.bottom;
+}
+
+function installWebMouseBridge(canvas) {
+    var lockRequested = false;
+
+    canvas.tabIndex = 0;
+    canvas.focus();
+
+    canvas.requestPointerLock = function() { /* block SDL's auto-lock */ };
+
+    function requestPointerLock() {
+        if (document.pointerLockElement || lockRequested) {
+            return;
+        }
+
+        lockRequested = true;
+        HTMLCanvasElement.prototype.requestPointerLock.call(canvas);
+    }
+
+    function resolvePointerPosition(event) {
+        if (document.pointerLockElement === canvas) {
+            return pushRelativeMousePosition(canvas, event.movementX || 0, event.movementY || 0);
+        }
+
+        return pushAbsoluteMousePosition(canvas, event.clientX, event.clientY);
+    }
+
+    window.addEventListener('pointermove', function(event) {
+        resolvePointerPosition(event);
+    });
+
+    window.addEventListener('pointerdown', function(event) {
+        var position = resolvePointerPosition(event);
+
+        if (isPointerEventInsideCanvas(canvas, event)) {
+            canvas.focus();
+            requestPointerLock();
+        }
+
+        if (lockRequested) {
+            return;
+        }
+
+        Module._fallout_push_mouse_button(position.x, position.y, event.button, 1);
+    });
+
+    window.addEventListener('pointerup', function(event) {
+        var position = resolvePointerPosition(event);
+        Module._fallout_push_mouse_button(position.x, position.y, event.button, 0);
+    });
+
+    document.addEventListener('pointerlockchange', function() {
+        lockRequested = false;
+    });
+}
+
+function buildFalloutCfg() {
+    return [
+        '[system]',
+        'master_dat=master.dat',
+        'master_patches=data',
+        'critter_dat=critter.dat',
+        'critter_patches=data',
+        'language=english',
+        'hashing=1',
+        'splash=0',
+        'art_cache_size=8',
+        'color_cycling=1',
+        'cycle_speed_factor=1',
+        'interrupt_walk=1',
+        'scroll_lock=0',
+        'free_space=0',
+        'executable=game',
+        'times_run=0',
+        '',
+        '[sound]',
+        'initialize=1',
+        'music=1',
+        'sounds=1',
+        'speech=1',
+        'master_volume=22281',
+        'music_volume=22281',
+        'sndfx_volume=22281',
+        'speech_volume=22281',
+        'cache_size=448',
+        'music_path1=data/sound/music/',
+        'music_path2=data/sound/music/',
+        'device=-1',
+        'port=-1',
+        'irq=-1',
+        'dma=-1',
+        '',
+        '[preferences]',
+        'game_difficulty=1',
+        'combat_difficulty=1',
+        'violence_level=3',
+        'target_highlight=1',
+        'item_highlight=1',
+        'combat_looks=1',
+        'combat_messages=1',
+        'combat_taunts=1',
+        'language_filter=0',
+        'running=1',
+        'subtitles=1',
+        'combat_speed=50',
+        'player_speed=0',
+        'brightness=1.000000',
+        'mouse_sensitivity=1.000000',
+        'text_base_delay=3.500000',
+        'text_line_delay=1.000000',
+        'running_burning_guy=1',
+        'player_speedup=1',
+        '',
+        '[debug]',
+        'mode=environment',
+        'show_tile_num=0',
+        'show_script_messages=0',
+        'show_load_info=0',
+        'output_map_data_info=0',
+        ''
+    ].join('\n');
+}
+
+function buildBrowserF1ResIni() {
+    return [
+        '[MAIN]',
+        'SCR_WIDTH=640',
+        'SCR_HEIGHT=480',
+        'WINDOWED=1',
+        'SCALE_2X=0',
+        ''
+    ].join('\n');
+}
+
+function writeBrowserConfigFiles() {
+    Module.FS.writeFile('/fallout.cfg', buildFalloutCfg());
+    Module.FS.writeFile('/f1_res.ini', buildBrowserF1ResIni());
+    console.log('[fallout-ce] Wrote browser config files to MEMFS');
 }
 
 var Module = {
@@ -168,19 +432,128 @@ var Module = {
     }
 };
 
-document.getElementById('start-button').addEventListener('click', function() {
+var statusEl = document.getElementById('import-status');
+var startBtn = document.getElementById('start-button');
+var importBtn = document.getElementById('import-button');
+
+// --- Data import via File System Access API (Chromium) ---
+
+async function readDirRecursive(dirHandle, basePath) {
+    var entries = [];
+    for await (var [name, handle] of dirHandle.entries()) {
+        // Lowercase everything — MEMFS is case-sensitive, engine expects lowercase
+        var fullPath = basePath + '/' + name.toLowerCase();
+        if (handle.kind === 'file') {
+            entries.push({ path: fullPath, handle: handle });
+        } else if (handle.kind === 'directory') {
+            var sub = await readDirRecursive(handle, fullPath);
+            entries.push.apply(entries, sub);
+        }
+    }
+    return entries;
+}
+
+function ensureParentDirs(filePath) {
+    var fs = Module.FS;
+    var parts = filePath.split('/').filter(Boolean);
+    var current = '/';
+    // Create all dirs except the filename itself
+    for (var i = 0; i < parts.length - 1; i++) {
+        current += (current === '/' ? '' : '/') + parts[i];
+        try {
+            fs.mkdir(current);
+        } catch (e) {
+            // EEXIST is fine
+            if (e.code !== 'EEXIST') throw e;
+        }
+    }
+}
+
+importBtn.addEventListener('click', async function() {
+    try {
+        var dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+    } catch (e) {
+        // User cancelled
+        return;
+    }
+
+    importBtn.disabled = true;
+    statusEl.textContent = 'Scanning folder…';
+
+    try {
+        var files = await readDirRecursive(dirHandle, '');
+        statusEl.textContent = 'Found ' + files.length + ' files. Importing…';
+
+        // Validate: need master.dat at top level (already lowercased)
+        var topNames = files.map(function(f) { return f.path.split('/')[1]; });
+        if (topNames.indexOf('master.dat') === -1) {
+            statusEl.textContent = 'Error: master.dat not found in selected folder.';
+            importBtn.disabled = false;
+            return;
+        }
+
+
+        var imported = 0;
+
+        for (var i = 0; i < files.length; i++) {
+            var entry = files[i];
+            try {
+                var file = await entry.handle.getFile();
+                var buffer = new Uint8Array(await file.arrayBuffer());
+                ensureParentDirs(entry.path);
+                Module.FS.writeFile(entry.path, buffer);
+                imported++;
+                if (imported % 100 === 0 || imported === files.length) {
+                    statusEl.textContent = 'Imported ' + imported + ' / ' + files.length + ' files…';
+                }
+            } catch (e) {
+                console.warn('[fallout-ce] Skip ' + entry.path + ': ' + e.message);
+            }
+        }
+
+        statusEl.textContent = 'Import complete — ' + imported + ' files. Ready to start!';
+
+        // Write browser-owned config files suitable for the web runtime.
+        // The engine reads dat paths from fallout.cfg and internal render size
+        // from f1_res.ini.
+        writeBrowserConfigFiles();
+
+        startBtn.disabled = false;
+        importBtn.textContent = 'Re-import';
+        importBtn.disabled = false;
+
+    } catch (e) {
+        statusEl.textContent = 'Import failed: ' + e.message;
+        importBtn.disabled = false;
+        console.error('[fallout-ce] Import error:', e);
+    }
+});
+
+// --- Engine start ---
+
+startBtn.addEventListener('click', function() {
+    if (startBtn.disabled) return;
     var overlay = document.getElementById('overlay');
     overlay.classList.add('hidden');
+    startBtn.disabled = true;
+
+    // Browser-owned mouse bridge for the web runtime.
+    // - Tracks mouse from global pointer events, not just the canvas element.
+    // - Keeps the browser cursor hidden across the whole page while running.
+    // - Uses pointer lock as an enhancement for unbounded movement, but the
+    //   engine still receives absolute positions even when pointer lock is off.
+    var canvas = document.getElementById('canvas');
+    document.body.classList.add('game-running');
+    installWebMouseBridge(canvas);
+
+    writeBrowserConfigFiles();
 
     try {
         Module.callMain();
     } catch (e) {
-        // Asyncify unwind exceptions are normal and should not be caught.
-        // They have a specific shape — rethrow them.
         if (e instanceof WebAssembly.RuntimeError || (e.message && e.message.indexOf('unreachable') !== -1)) {
             showError(e.message || String(e));
         } else if (typeof e === 'number') {
-            // Emscripten may throw an exit status number
             if (e !== 0) {
                 showError('Engine exited with code ' + e);
             }
